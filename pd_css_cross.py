@@ -24,6 +24,7 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 DATA_PATH = Path("abt_app_PD_INS.xlsx")
 OUTPUT_DIR = Path("outputs/pd_css_cross")
+SAS_PATH = OUTPUT_DIR / "scoring_code.sas"
 
 MODEL_ID = "PD_CSS_CROSS"
 TARGET = "default_cross12"
@@ -55,6 +56,14 @@ LEAKAGE_TOKENS = (
     "pd_",
     "score_",
 )
+
+ENGINEERED_RATIOS = {
+    "eng_app_loan_to_income": ("app_loan_amount", "app_income"),
+    "eng_app_installment_to_income": ("app_installment", "app_income"),
+    "eng_app_spending_to_income": ("app_spendings", "app_income"),
+    "eng_act_loaninc_to_income": ("act_loaninc", "app_income"),
+    "eng_act_cc_to_income": ("act_cc", "app_income"),
+}
 
 
 def safe_abs_gini(y_true, score):
@@ -119,15 +128,7 @@ def select_features(df):
 def add_features(X):
     X = X.copy()
 
-    ratios = {
-        "eng_app_loan_to_income": ("app_loan_amount", "app_income"),
-        "eng_app_installment_to_income": ("app_installment", "app_income"),
-        "eng_app_spending_to_income": ("app_spendings", "app_income"),
-        "eng_act_loaninc_to_income": ("act_loaninc", "app_income"),
-        "eng_act_cc_to_income": ("act_cc", "app_income"),
-    }
-
-    for new_column, (numerator, denominator) in ratios.items():
+    for new_column, (numerator, denominator) in ENGINEERED_RATIOS.items():
         if numerator in X.columns and denominator in X.columns:
             X[new_column] = X[numerator] / X[denominator].replace(0, np.nan)
 
@@ -390,6 +391,150 @@ def feature_importance(fitted_model):
     )
 
 
+def sas_quote(value):
+    return "'" + str(value).replace("'", "''") + "'"
+
+
+def sas_numeric_expression(feature, raw_features):
+    if feature in ENGINEERED_RATIOS:
+        numerator, denominator = ENGINEERED_RATIOS[feature]
+        return (
+            f"(case when missing({denominator}) or {denominator}=0 then . "
+            f"else {numerator}/{denominator} end)"
+        )
+    if feature == "eng_missing_count":
+        return "sum(" + ", ".join(f"missing({feature})" for feature in raw_features) + ")"
+    return feature
+
+
+def sas_standardized_numeric_term(feature, coefficient, median, mean, scale, raw_features):
+    expression = sas_numeric_expression(feature, raw_features)
+    return (
+        f"{coefficient:.12f} * "
+        f"((coalesce({expression}, {median:.12f}) - {mean:.12f}) / {scale:.12f})"
+    )
+
+
+def sas_missing_indicator_term(feature, coefficient, mean, scale):
+    return (
+        f"{coefficient:.12f} * "
+        f"(((case when missing({feature}) then 1 else 0 end) - {mean:.12f}) / {scale:.12f})"
+    )
+
+
+def sas_category_equals(feature, category, mode):
+    category_condition = f"{feature} = {sas_quote(category)}"
+    if str(category) == str(mode):
+        return f"({category_condition} or missing({feature}))"
+    return f"({category_condition})"
+
+
+def sas_category_in(feature, values, mode):
+    clean_values = [str(value) for value in values if pd.notna(value)]
+    conditions = []
+    if clean_values:
+        quoted = ", ".join(sas_quote(value) for value in clean_values)
+        conditions.append(f"{feature} in ({quoted})")
+    if str(mode) in clean_values:
+        conditions.append(f"missing({feature})")
+    return "(" + " or ".join(conditions) + ")" if conditions else "(0)"
+
+
+def export_sas_scoring_code(fitted_model, raw_features):
+    preprocess = fitted_model.named_steps["preprocess"]
+    classifier = fitted_model.named_steps["model"]
+    coefficients = pd.Series(
+        classifier.coef_[0], index=preprocess.get_feature_names_out()
+    )
+    terms = []
+
+    numeric_pipeline = preprocess.named_transformers_["num"]
+    numeric_columns = list(preprocess.transformers_[0][2])
+    numeric_imputer = numeric_pipeline.named_steps["imputer"]
+    numeric_scaler = numeric_pipeline.named_steps["scaler"]
+    numeric_output_names = numeric_imputer.get_feature_names_out(numeric_columns)
+    numeric_medians = dict(zip(numeric_columns, numeric_imputer.statistics_))
+
+    for idx, output_name in enumerate(numeric_output_names):
+        full_name = f"num__{output_name}"
+        coefficient = float(coefficients.get(full_name, 0.0))
+        if abs(coefficient) < 1e-12:
+            continue
+
+        mean = float(numeric_scaler.mean_[idx])
+        scale = float(numeric_scaler.scale_[idx])
+        if output_name.startswith("missingindicator_"):
+            feature = output_name.replace("missingindicator_", "", 1)
+            term = sas_missing_indicator_term(feature, coefficient, mean, scale)
+        else:
+            feature = output_name
+            median = float(numeric_medians[feature])
+            term = sas_standardized_numeric_term(
+                feature, coefficient, median, mean, scale, raw_features
+            )
+        terms.append({"feature": full_name, "coefficient": coefficient, "term": term})
+
+    categorical_pipeline = preprocess.named_transformers_["cat"]
+    categorical_columns = list(preprocess.transformers_[1][2])
+    categorical_imputer = categorical_pipeline.named_steps["imputer"]
+    encoder = categorical_pipeline.named_steps["onehot"]
+    modes = dict(zip(categorical_columns, categorical_imputer.statistics_))
+
+    for idx, feature in enumerate(categorical_columns):
+        categories = [str(value) for value in encoder.categories_[idx]]
+        infrequent = getattr(encoder, "infrequent_categories_", None)
+        infrequent_values = []
+        if infrequent is not None and infrequent[idx] is not None:
+            infrequent_values = [str(value) for value in infrequent[idx]]
+
+        frequent_categories = [
+            category for category in categories if category not in set(infrequent_values)
+        ]
+        mode = str(modes[feature])
+
+        for category in frequent_categories:
+            full_name = f"cat__{feature}_{category}"
+            coefficient = float(coefficients.get(full_name, 0.0))
+            if abs(coefficient) < 1e-12:
+                continue
+            condition = sas_category_equals(feature, category, mode)
+            terms.append(
+                {
+                    "feature": full_name,
+                    "coefficient": coefficient,
+                    "term": f"{coefficient:.12f} * (case when {condition} then 1 else 0 end)",
+                }
+            )
+
+        if infrequent_values:
+            full_name = f"cat__{feature}_infrequent_sklearn"
+            coefficient = float(coefficients.get(full_name, 0.0))
+            if abs(coefficient) >= 1e-12:
+                condition = sas_category_in(feature, infrequent_values, mode)
+                terms.append(
+                    {
+                        "feature": full_name,
+                        "coefficient": coefficient,
+                        "term": f"{coefficient:.12f} * (case when {condition} then 1 else 0 end)",
+                    }
+                )
+
+    with open(SAS_PATH, "w", encoding="utf-8") as file:
+        file.write("proc sql;\n")
+        file.write("create table &zbior._score as\n")
+        file.write("select indataset.*\n")
+        file.write(", (\n")
+        file.write(f"  {float(classifier.intercept_[0]):.12f}\n")
+        for row in terms:
+            file.write(f"  + {row['term']}\n")
+        file.write(f") as {SCORE_COLUMN}\n")
+        file.write(f", 1/(1+exp(-calculated {SCORE_COLUMN})) as {PD_COLUMN}\n")
+        file.write("from &zbior as indataset;\n")
+        file.write("quit;\n")
+
+    pd.DataFrame(terms).to_csv(OUTPUT_DIR / "sas_scoring_terms.csv", index=False)
+
+
 def make_predictions(sample, mask, probabilities, scores):
     predictions = sample.loc[
         mask, [ID_COLUMN, PERIOD_COLUMN, "product", "decision", TARGET]
@@ -450,6 +595,7 @@ def main():
     feature_importance(model).head(100).to_csv(
         OUTPUT_DIR / "top_feature_importance.csv", index=False
     )
+    export_sas_scoring_code(model, raw_features)
 
     test_metrics = metrics[-1]
     print("PD Css Cross model: L1 regularized logistic regression")
@@ -461,6 +607,7 @@ def main():
     print(f"OOT test rows: {masks['test'].sum()}")
     print(f"OOT test AUC: {test_metrics['auc']:.4f}")
     print(f"OOT test Gini: {test_metrics['gini']:.4f}")
+    print(f"SAS scoring code: {SAS_PATH}")
     print(f"Outputs written to: {OUTPUT_DIR}")
 
 
