@@ -1,0 +1,2 @@
+model_id,target,period_from,period_to,decision,product,product_rows,target_non_missing_rows,target_missing_rows_in_product_sample,target_not_missing_share_in_product_sample,duplicate_id_rows,event_rate,sample_note
+PD_CSS_CROSS,default_cross12,197501,198712,A,ins,22325,2130,20195,0.0954087346024636,0,0.392018779342723,"PD Css Cross sample: decision=A, product=ins, target=default_cross12 not missing."
