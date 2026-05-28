@@ -12,7 +12,6 @@ Business definition:
 
 from pathlib import Path
 
-import joblib
 import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
@@ -31,7 +30,6 @@ TARGET = "default_cross12"
 ID_COLUMN = "aid"
 PERIOD_COLUMN = "period"
 PD_COLUMN = "PD_CSS_CROSS"
-RAW_PD_COLUMN = "RAW_PD_CSS_CROSS"
 SCORE_COLUMN = "SCORE_PD_CSS_CROSS"
 
 PERIOD_FROM = "197501"
@@ -40,11 +38,8 @@ RANDOM_STATE = 1234
 VALIDATION_FRACTION = 0.15
 TEST_FRACTION = 0.15
 MIN_HOLDOUT_ROWS = 250
-MIN_CV_TRAIN_ROWS = 500
-MIN_CV_VALIDATION_ROWS = 100
 
 APPLICATION_PRODUCT = "ins"
-FALLBACK_PRODUCT_WHEN_INS_ABSENT = "css"
 DECISION = "A"
 
 CANDIDATE_PREFIXES = ("app", "act", "agr", "ags")
@@ -62,10 +57,6 @@ LEAKAGE_TOKENS = (
 )
 
 
-def gini(y_true, probability):
-    return 2.0 * roc_auc_score(y_true, probability) - 1.0
-
-
 def safe_abs_gini(y_true, score):
     if pd.Series(score).nunique(dropna=True) < 2:
         return 0.0
@@ -73,62 +64,26 @@ def safe_abs_gini(y_true, score):
     return float(abs(2.0 * auc - 1.0))
 
 
-def load_abt():
-    if DATA_PATH.suffix.lower() in {".xlsx", ".xls"}:
-        df = pd.read_excel(DATA_PATH)
-    elif DATA_PATH.suffix.lower() == ".sas7bdat":
-        df = pd.read_sas(DATA_PATH, encoding="LATIN2")
-    else:
-        raise ValueError(f"Unsupported ABT file type: {DATA_PATH.suffix}")
-
-    object_columns = df.select_dtypes(include="object").columns
-    for column in object_columns:
-        df[column] = df[column].str.strip()
-        df[column] = df[column].replace("", np.nan)
-    return df
-
-
 def load_sample():
-    df = load_abt()
+    df = pd.read_excel(DATA_PATH)
     df[PERIOD_COLUMN] = df[PERIOD_COLUMN].astype(str)
+    for column in df.select_dtypes(include="object").columns:
+        df[column] = df[column].str.strip().replace("", np.nan)
 
-    base_mask = (
+    product_mask = (
         df[PERIOD_COLUMN].between(PERIOD_FROM, PERIOD_TO)
         & df["decision"].eq(DECISION)
+        & df["product"].eq(APPLICATION_PRODUCT)
     )
-    application_mask = base_mask & df["product"].eq(APPLICATION_PRODUCT)
-
-    sample_note = (
-        f"Primary PD Css Cross sample: decision={DECISION}, "
-        f"product={APPLICATION_PRODUCT}, target={TARGET} not missing."
-    )
-    modelling_mask = application_mask
-
-    if application_mask.sum() == 0:
-        fallback_mask = base_mask & df["product"].eq(FALLBACK_PRODUCT_WHEN_INS_ABSENT)
-        if fallback_mask.sum() == 0:
-            raise ValueError(
-                "No rows found for the intended instalment-loan application "
-                f"population product={APPLICATION_PRODUCT!r}, and no fallback "
-                f"rows found for product={FALLBACK_PRODUCT_WHEN_INS_ABSENT!r}."
-            )
-
-        sample_note = (
-            "No instalment-loan application rows exist in this ABT. "
-            f"Using product={FALLBACK_PRODUCT_WHEN_INS_ABSENT!r} rows with "
-            f"non-missing {TARGET} as the available cross-sold cash-loan "
-            "risk sample. Do not interpret missing target rows as non-defaults."
-        )
-        modelling_mask = fallback_mask
-
-    target_mask = modelling_mask & df[TARGET].notna()
+    target_mask = product_mask & df[TARGET].notna()
     if target_mask.sum() == 0:
-        raise ValueError(
-            f"No modelling rows have non-missing {TARGET}. "
-            "Check target construction before fitting PD Css Cross."
-        )
+        raise ValueError(f"No rows found with non-missing {TARGET}.")
 
     sample = df.loc[target_mask].reset_index(drop=True)
+    sample_note = (
+        f"PD Css Cross sample: decision={DECISION}, product={APPLICATION_PRODUCT}, "
+        f"target={TARGET} not missing."
+    )
     sample.attrs["sample_note"] = sample_note
     sample.attrs["sample_audit"] = {
         "model_id": MODEL_ID,
@@ -136,19 +91,14 @@ def load_sample():
         "period_from": PERIOD_FROM,
         "period_to": PERIOD_TO,
         "decision": DECISION,
-        "intended_application_product": APPLICATION_PRODUCT,
-        "actual_product_values": ", ".join(sorted(map(str, sample["product"].unique()))),
-        "base_rows": int(base_mask.sum()),
-        "intended_product_rows": int(application_mask.sum()),
-        "fallback_product_rows": int(
-            (base_mask & df["product"].eq(FALLBACK_PRODUCT_WHEN_INS_ABSENT)).sum()
-        ),
+        "product": APPLICATION_PRODUCT,
+        "product_rows": int(product_mask.sum()),
         "target_non_missing_rows": int(target_mask.sum()),
         "target_missing_rows_in_product_sample": int(
-            (modelling_mask & df[TARGET].isna()).sum()
+            (product_mask & df[TARGET].isna()).sum()
         ),
         "target_not_missing_share_in_product_sample": float(
-            df.loc[modelling_mask, TARGET].notna().mean()
+            df.loc[product_mask, TARGET].notna().mean()
         ),
         "duplicate_id_rows": int(sample.duplicated(ID_COLUMN).sum()),
         "event_rate": float(sample[TARGET].mean()),
@@ -346,78 +296,6 @@ def selected_features_from_report(feature_report):
     return feature_report.loc[feature_report["selected"], "feature"].tolist()
 
 
-def time_series_cross_validation(sample, X_all, y):
-    years = sorted(sample[PERIOD_COLUMN].str[:4].unique())
-    rows = []
-
-    for validation_year in years:
-        train_mask = sample[PERIOD_COLUMN].str[:4] < validation_year
-        validation_mask = sample[PERIOD_COLUMN].str[:4] == validation_year
-
-        if train_mask.sum() < MIN_CV_TRAIN_ROWS:
-            continue
-        if validation_mask.sum() < MIN_CV_VALIDATION_ROWS:
-            continue
-        if y.loc[train_mask].nunique() < 2 or y.loc[validation_mask].nunique() < 2:
-            continue
-
-        fold_feature_report = feature_quality_report(X_all, y, train_mask)
-        fold_features = selected_features_from_report(fold_feature_report)
-        if not fold_features:
-            continue
-
-        fold_model = build_model(X_all[fold_features])
-        fold_model.fit(X_all.loc[train_mask, fold_features], y.loc[train_mask])
-        probability = fold_model.predict_proba(
-            X_all.loc[validation_mask, fold_features]
-        )[:, 1]
-        auc = roc_auc_score(y.loc[validation_mask], probability)
-
-        rows.append(
-            {
-                "validation_year": validation_year,
-                "train_period_min": sample.loc[train_mask, PERIOD_COLUMN].min(),
-                "train_period_max": sample.loc[train_mask, PERIOD_COLUMN].max(),
-                "validation_period_min": sample.loc[
-                    validation_mask, PERIOD_COLUMN
-                ].min(),
-                "validation_period_max": sample.loc[
-                    validation_mask, PERIOD_COLUMN
-                ].max(),
-                "train_rows": int(train_mask.sum()),
-                "validation_rows": int(validation_mask.sum()),
-                "train_bad_rate": float(y.loc[train_mask].mean()),
-                "validation_bad_rate": float(y.loc[validation_mask].mean()),
-                "n_features": int(len(fold_features)),
-                "auc": float(auc),
-                "gini": float(2.0 * auc - 1.0),
-                "predicted_pd_mean": float(np.mean(probability)),
-            }
-        )
-
-    cv = pd.DataFrame(rows)
-    if cv.empty:
-        return cv
-
-    summary = pd.DataFrame(
-        [
-            {
-                "n_folds": int(cv.shape[0]),
-                "mean_gini": float(cv["gini"].mean()),
-                "std_gini": float(cv["gini"].std(ddof=0)),
-                "min_gini": float(cv["gini"].min()),
-                "max_gini": float(cv["gini"].max()),
-                "mean_auc": float(cv["auc"].mean()),
-                "mean_validation_bad_rate": float(cv["validation_bad_rate"].mean()),
-                "mean_predicted_pd": float(cv["predicted_pd_mean"].mean()),
-            }
-        ]
-    )
-    cv.to_csv(OUTPUT_DIR / "time_series_cv.csv", index=False)
-    summary.to_csv(OUTPUT_DIR / "time_series_cv_summary.csv", index=False)
-    return cv
-
-
 def build_model(X):
     numeric_columns = X.select_dtypes(include="number").columns.tolist()
     categorical_columns = [
@@ -451,7 +329,6 @@ def build_model(X):
         penalty="l1",
         solver="liblinear",
         C=0.05,
-        class_weight="balanced",
         max_iter=2000,
         random_state=RANDOM_STATE,
     )
@@ -513,22 +390,11 @@ def feature_importance(fitted_model):
     )
 
 
-def fit_calibrator(validation_scores, y_validation):
-    calibrator = LogisticRegression(C=1e6, solver="lbfgs", max_iter=1000)
-    calibrator.fit(validation_scores.reshape(-1, 1), y_validation)
-    return calibrator
-
-
-def calibrated_probability(calibrator, scores):
-    return calibrator.predict_proba(scores.reshape(-1, 1))[:, 1]
-
-
-def make_predictions(sample, mask, raw_probabilities, probabilities, scores):
+def make_predictions(sample, mask, probabilities, scores):
     predictions = sample.loc[
         mask, [ID_COLUMN, PERIOD_COLUMN, "product", "decision", TARGET]
     ].copy()
     predictions[SCORE_COLUMN] = scores
-    predictions[RAW_PD_COLUMN] = raw_probabilities
     predictions[PD_COLUMN] = probabilities
     return predictions
 
@@ -546,26 +412,18 @@ def main():
         raise ValueError("No features passed data-quality screening.")
 
     write_sample_audit(sample, raw_features, selected_features, feature_report)
-    cv = time_series_cross_validation(sample, X_all, y)
     X = X_all[selected_features]
 
     model = build_model(X)
     model.fit(X.loc[masks["train"]], y.loc[masks["train"]])
 
     metrics = []
-    raw_probabilities = {}
     probabilities = {}
     scores = {}
 
-    validation_scores = model.decision_function(X.loc[masks["validation"]])
-    calibrator = fit_calibrator(validation_scores, y.loc[masks["validation"]])
-
     for split_name, mask in masks.items():
         scores[split_name] = model.decision_function(X.loc[mask])
-        raw_probabilities[split_name] = model.predict_proba(X.loc[mask])[:, 1]
-        probabilities[split_name] = calibrated_probability(
-            calibrator, scores[split_name]
-        )
+        probabilities[split_name] = model.predict_proba(X.loc[mask])[:, 1]
         metrics.append(metrics_row(split_name, y.loc[mask], probabilities[split_name]))
 
     pd.DataFrame(metrics).to_csv(OUTPUT_DIR / "metrics.csv", index=False)
@@ -575,7 +433,6 @@ def main():
         predictions = make_predictions(
             sample,
             mask,
-            raw_probabilities[split_name],
             probabilities[split_name],
             scores[split_name],
         )
@@ -593,8 +450,6 @@ def main():
     feature_importance(model).head(100).to_csv(
         OUTPUT_DIR / "top_feature_importance.csv", index=False
     )
-    joblib.dump(model, OUTPUT_DIR / "pd_css_cross_model.joblib")
-    joblib.dump(calibrator, OUTPUT_DIR / "pd_css_cross_calibrator.joblib")
 
     test_metrics = metrics[-1]
     print("PD Css Cross model: L1 regularized logistic regression")
@@ -606,10 +461,6 @@ def main():
     print(f"OOT test rows: {masks['test'].sum()}")
     print(f"OOT test AUC: {test_metrics['auc']:.4f}")
     print(f"OOT test Gini: {test_metrics['gini']:.4f}")
-    if not cv.empty:
-        print(f"Time-series CV folds: {cv.shape[0]}")
-        print(f"Time-series CV mean Gini: {cv['gini'].mean():.4f}")
-        print(f"Time-series CV Gini std: {cv['gini'].std(ddof=0):.4f}")
     print(f"Outputs written to: {OUTPUT_DIR}")
 
 
