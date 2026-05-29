@@ -25,11 +25,12 @@ model_id = PD_CSS_CROSS
 target = default_cross12
 product = ins
 decision = A
+cross_response = 1
 ```
 
 Interpretation:
 
-The model is built on accepted instalment-loan applications. The target `default_cross12` tells whether the related cross-sold cash loan defaulted within 12 months.
+The model is built on accepted instalment-loan applications where the customer accepted/took the cross-sold cash loan. The target `default_cross12` tells whether the related cross-sold cash loan defaulted within 12 months.
 
 Important defence point:
 
@@ -129,25 +130,25 @@ log_loss
 Current model results are approximately:
 
 ```text
-Train Gini:      0.7628
-Validation Gini: 0.7091
-Test Gini:       0.7617
+Train Gini:      0.5370
+Validation Gini: 0.5488
+Test Gini:       0.5462
 ```
 
 Interpretation:
 
-> The model has good discriminatory power. A test Gini around 0.76 is a strong result for a credit-risk model.
+> The model has moderate discriminatory power. The validation and test Gini are close to each other, which is more important than the earlier Excel-based result because this run uses the raw SAS source population.
 
 Also compare:
 
 ```text
-test bad_rate          ~= 0.2883
-test predicted_pd_mean ~= 0.2887
+test bad_rate          ~= 0.2606
+test predicted_pd_mean ~= 0.2939
 ```
 
 Interpretation:
 
-> The average predicted PD is very close to the actual default rate on the out-of-time test sample, so average calibration is good.
+> The average predicted PD is somewhat higher than the actual default rate on the out-of-time test sample, so calibration should be reviewed bucket by bucket rather than judged only by the average.
 
 ## 7. `oot_test_calibration.csv`
 
@@ -266,8 +267,8 @@ This file is intended to be included by `%include` in `decision_engine.sas`.
 
 ## Full Process to Explain During Defence
 
-1. I built the `PD_CSS_CROSS` model using `abt_app_PD_INS.xlsx`.
-2. The population is accepted instalment-loan applications.
+1. I built the `PD_CSS_CROSS` model using `abt_app.sas7bdat`.
+2. The population is accepted instalment-loan applications with `cross_response = 1`.
 3. This is correct because the model is supposed to work at the time of applying for an instalment loan.
 4. The target is `default_cross12`, which marks default of the related cross-sold cash loan within 12 months.
 5. I removed rows where `default_cross12` is missing, because missing target does not mean non-default.
@@ -277,13 +278,13 @@ This file is intended to be included by `%include` in `decision_engine.sas`.
 9. I split the data out-of-time into train, validation, and test.
 10. I trained a logistic regression model.
 11. I evaluated the model using Gini, AUC, Brier score, log-loss, and calibration.
-12. The out-of-time test Gini is around `0.76`, which indicates good discriminatory power.
-13. The average predicted PD is close to the actual default rate on the test sample, which indicates good average calibration.
+12. The out-of-time test Gini is around `0.55`, which indicates moderate discriminatory power.
+13. The average predicted PD is somewhat higher than the actual default rate on the test sample, so I reviewed calibration on the test buckets.
 14. I generated `scoring_code.sas`, which creates `SCORE_PD_CSS_CROSS` and `PD_CSS_CROSS` for use in the SAS simulation process.
 
 ## Short Defence Statement
 
-> The PD Css Cross model measures the risk that a cross-sold cash loan defaults within 12 months, using only information available at the instalment-loan application moment. The model is trained on accepted instalment-loan applications with known `default_cross12`. It uses out-of-time validation, achieves a test Gini around 0.76, and produces SAS scoring code that calculates both `SCORE_PD_CSS_CROSS` and `PD_CSS_CROSS` for the simulation engine.
+> The PD Css Cross model measures the risk that a cross-sold cash loan defaults within 12 months, using only information available at the instalment-loan application moment. The model is trained on accepted instalment-loan applications with `cross_response = 1` and known `default_cross12`. It uses out-of-time validation, achieves a test Gini around 0.55, and produces SAS scoring code that calculates both `SCORE_PD_CSS_CROSS` and `PD_CSS_CROSS` for the simulation engine.
 
 ## Feature Selection
 
@@ -301,7 +302,7 @@ The final logistic model also uses L1 regularization, which further reduces the 
 The model starts from the full ABT:
 
 ```text
-abt_app_PD_INS.xlsx
+abt_app.sas7bdat
 ```
 
 It considers variables whose names start with:
