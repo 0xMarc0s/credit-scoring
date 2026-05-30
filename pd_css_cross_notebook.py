@@ -1,15 +1,30 @@
-"""PD Css Cross model.
+# ---
+# jupyter:
+#   jupytext:
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+# kernelspec:
+#   display_name: Python 3
+#   language: python
+#   name: python3
+# ---
 
-This is a simplified, single-model version of the workflow from
-ASB_step_by_step.py.  It models `default_cross12`, the 12-month default flag for
-the linked next/cross-sold product.
+# %% [markdown]
+# # Model PD Css Cross
+#
+# Wersja kodu z `pd_css_cross.py` przygotowana do pracy w notebooku.
+#
+# Definicja biznesowa: estymacja `P(default_cross12 = 1)` dla powiązanego następnego / cross-sellowego produktu, z użyciem informacji dostępnych w momencie bieżącej zaakceptowanej aplikacji. Próba obejmuje dowolny bieżący produkt (`product = all`), a następnie waliduje wyniki oddzielnie dla aplikacji `css` i `ins`.
+#
+# Notebook usuwa silnie skorelowane zmienne i pilnuje limitu VIF, aby finalny model był łatwiejszy do obrony biznesowej.
 
-Business definition:
-    PD Css Cross estimates the probability that the linked next/cross-sold
-    product defaults within 12 months, using information available at the
-    current application moment for accepted applications of any product.
-"""
+# %% [markdown]
+# ## Konfiguracja
+# Importy, ścieżki, stałe modelu oraz reguły wyboru zmiennych.
 
+# %%
 from pathlib import Path
 
 import numpy as np
@@ -80,6 +95,12 @@ ENGINEERED_RATIOS = {
 }
 
 
+
+# %% [markdown]
+# ## Funkcje pomocnicze
+# Małe funkcje pomocnicze używane w diagnostyce zmiennych i raportach.
+
+# %%
 def safe_abs_gini(y_true, score):
     if pd.Series(score).nunique(dropna=True) < 2:
         return 0.0
@@ -87,6 +108,12 @@ def safe_abs_gini(y_true, score):
     return float(abs(2.0 * auc - 1.0))
 
 
+
+# %% [markdown]
+# ## Definicja próby
+# Wczytanie tabeli ABT z SAS i zbudowanie łącznej próby dla dowolnego produktu dla celu `default_cross12`.
+
+# %%
 def load_sample():
     df = pd.read_sas(DATA_PATH, encoding="LATIN2")
     df[PERIOD_COLUMN] = df[PERIOD_COLUMN].astype(str)
@@ -192,6 +219,12 @@ def write_sample_audit(sample, raw_features, selected_features, feature_report):
     feature_report.to_csv(OUTPUT_DIR / "feature_quality.csv", index=False)
 
 
+
+# %% [markdown]
+# ## Podział out-of-time
+# Zbudowanie masek train, validation i test na podstawie kolejności okresów.
+
+# %%
 def temporal_holdout_masks(sample):
     sample_periods = sample[[PERIOD_COLUMN]].copy()
     sample_periods["row_number"] = np.arange(sample.shape[0])
@@ -270,6 +303,12 @@ def split_by_time(sample):
     return masks
 
 
+
+# %% [markdown]
+# ## Diagnostyka zmiennych
+# Diagnostyka jednowymiarowa oraz raport jakości zmiennych.
+
+# %%
 def categorical_univariate_score(series, y):
     grouped = (
         pd.DataFrame({"value": series.fillna("__MISSING__"), "target": y})
@@ -504,6 +543,12 @@ def prune_correlated_features(X, y, train_mask, candidate_features, feature_repo
     return selected_features, pruning_report
 
 
+
+# %% [markdown]
+# ## Pipeline modelu
+# Przetwarzanie danych oraz regresja logistyczna z regularyzacją L1.
+
+# %%
 def build_model(X):
     numeric_columns = X.select_dtypes(include="number").columns.tolist()
     categorical_columns = [
@@ -635,6 +680,12 @@ def validate_split_masks(sample, masks):
         )
 
 
+
+# %% [markdown]
+# ## Metryki i kalibracja
+# Metryki modelu, walidacja po produkcie, walidacja podziałów oraz tabele kalibracji.
+
+# %%
 def calibration_table(y_true, probability, n_bins=10):
     scored = pd.DataFrame({"target": y_true, PD_COLUMN: probability})
     scored["bucket"] = pd.qcut(scored[PD_COLUMN], q=n_bins, duplicates="drop")
@@ -657,6 +708,12 @@ def calibration_table(y_true, probability, n_bins=10):
     return table
 
 
+
+# %% [markdown]
+# ## Skoroszyty analizy zmiennych
+# Binning, scorecard, raport zmiennych oraz funkcje pomocnicze do Excela.
+
+# %%
 def format_number(value):
     if pd.isna(value):
         return "Missing"
@@ -1168,6 +1225,12 @@ def write_excel_analysis_reports(X, y, sample, masks):
     return big_scorecard, gini_vars, variable_details
 
 
+
+# %% [markdown]
+# ## Istotność zmiennych i VIF
+# Mapowanie przekształconych składników modelu do zmiennych źródłowych oraz obliczenie VIF.
+
+# %%
 def transformed_feature_to_raw(name, numeric_columns, categorical_columns):
     if name.startswith("num__missingindicator_"):
         return name.replace("num__missingindicator_", "", 1)
@@ -1465,6 +1528,12 @@ def write_model_variable_sheets(writer, workbook, variables, variable_details):
         )
 
 
+
+# %% [markdown]
+# ## Skoroszyt raportu modelu
+# Zbudowanie zbiorczego skoroszytu `Model_report.xlsx`.
+
+# %%
 def write_model_report(
     sample,
     X,
@@ -1552,6 +1621,12 @@ def write_model_report(
         )
 
 
+
+# %% [markdown]
+# ## Raport segmentów
+# Zbudowanie podsumowań segmentów score.
+
+# %%
 def segment_summary(frame):
     grouped = (
         frame.groupby("Segment")
@@ -1724,6 +1799,12 @@ def write_segments_report(sample, y, masks, probabilities, scores, n_segments=3)
         write_segment_report_sheet(writer, "Balances", balances, balances_time)
 
 
+
+# %% [markdown]
+# ## Submodele produktowe
+# Wytrenowanie oddzielnych submodeli `css` i `ins` do porównania.
+
+# %%
 def train_product_submodels(sample, X, y):
     rows = []
     for product in sorted(sample["product"].dropna().unique()):
@@ -1790,6 +1871,12 @@ def feature_importance(fitted_model):
     )
 
 
+
+# %% [markdown]
+# ## Eksport kodu scoringowego SAS
+# Przepisanie wytrenowanego pipeline sklearn na kod scoringowy SAS.
+
+# %%
 def sas_quote(value):
     return "'" + str(value).replace("'", "''") + "'"
 
@@ -1934,6 +2021,12 @@ def export_sas_scoring_code(fitted_model, raw_features):
     pd.DataFrame(terms).to_csv(OUTPUT_DIR / "sas_scoring_terms.csv", index=False)
 
 
+
+# %% [markdown]
+# ## Uruchomienie pipeline
+# Funkcja pomocnicza do przygotowania tabeli predykcji.
+
+# %%
 def make_predictions(sample, mask, probabilities, scores):
     predictions = sample.loc[
         mask, [ID_COLUMN, PERIOD_COLUMN, "product", "decision", TARGET]
@@ -1941,130 +2034,191 @@ def make_predictions(sample, mask, probabilities, scores):
     predictions[SCORE_COLUMN] = scores
     predictions[PD_COLUMN] = probabilities
     return predictions
+# %% [markdown]
+# ## Krok 1: próba i zmienne
+# Wczytanie danych, zbudowanie próby modelowej, dodanie cech technicznych oraz przygotowanie podziału out-of-time.
 
+# %%
+sample = load_sample()
+raw_features = select_features(sample)
+X_all = add_features(sample[raw_features])
+y = sample[TARGET].astype(int)
+masks = split_by_time(sample)
 
-def main():
-    sample = load_sample()
-    raw_features = select_features(sample)
-    X_all = add_features(sample[raw_features])
-    y = sample[TARGET].astype(int)
-    masks = split_by_time(sample)
-    feature_report = feature_quality_report(X_all, y, masks["train"])
-    quality_selected_features = selected_features_from_report(feature_report)
+sample.attrs["sample_note"], X_all.shape, y.mean()
 
-    if FEATURE_SELECTION_MODE == "quality_screen":
-        selected_features = quality_selected_features
-    elif FEATURE_SELECTION_MODE == "all_leakage_safe":
-        selected_features = raw_features
-    else:
-        raise ValueError(f"Unknown FEATURE_SELECTION_MODE: {FEATURE_SELECTION_MODE}")
+# %% [markdown]
+# ## Krok 2: diagnostyka, korelacja i VIF
+# Przygotowanie raportu jakości zmiennych, usunięcie zmiennych silnie skorelowanych oraz finalne ograniczenie VIF do progu `VIF_PRUNING_THRESHOLD`.
 
-    pre_correlation_features = selected_features
-    selected_features, correlation_pruning = prune_correlated_features(
-        X_all, y, masks["train"], pre_correlation_features, feature_report
-    )
-    pre_vif_features = selected_features
-    selected_features, vif_pruning = prune_vif_features(
-        X_all, y, masks["train"], pre_vif_features, feature_report
-    )
-    feature_report["used_before_correlation_pruning"] = feature_report["feature"].isin(
-        pre_correlation_features
-    )
-    feature_report["used_before_vif_pruning"] = feature_report["feature"].isin(
-        pre_vif_features
-    )
-    feature_report["used_in_model"] = feature_report["feature"].isin(selected_features)
-    feature_report["correlation_pruned"] = (
-        feature_report["used_before_correlation_pruning"]
-        & ~feature_report["used_before_vif_pruning"]
-    )
-    feature_report["vif_pruned"] = (
-        feature_report["used_before_vif_pruning"] & ~feature_report["used_in_model"]
-    )
+# %%
+feature_report = feature_quality_report(X_all, y, masks["train"])
+quality_selected_features = selected_features_from_report(feature_report)
 
-    if not selected_features:
-        raise ValueError("No features passed data-quality screening.")
+if FEATURE_SELECTION_MODE == "quality_screen":
+    selected_features = quality_selected_features
+elif FEATURE_SELECTION_MODE == "all_leakage_safe":
+    selected_features = raw_features
+else:
+    raise ValueError(f"Unknown FEATURE_SELECTION_MODE: {FEATURE_SELECTION_MODE}")
 
-    write_sample_audit(sample, raw_features, selected_features, feature_report)
-    correlation_pruning.to_csv(
-        OUTPUT_DIR / "correlation_pruning.csv", index=False
-    )
-    vif_pruning.to_csv(OUTPUT_DIR / "vif_pruning.csv", index=False)
-    X = X_all[selected_features]
-    big_scorecard, gini_vars, variable_details = write_excel_analysis_reports(
-        X, y, sample, masks
-    )
+pre_correlation_features = selected_features
+selected_features, correlation_pruning = prune_correlated_features(
+    X_all, y, masks["train"], pre_correlation_features, feature_report
+)
+pre_vif_features = selected_features
+selected_features, vif_pruning = prune_vif_features(
+    X_all, y, masks["train"], pre_vif_features, feature_report
+)
 
-    model = build_model(X)
-    model.fit(X.loc[masks["train"]], y.loc[masks["train"]])
+feature_report["used_before_correlation_pruning"] = feature_report["feature"].isin(
+    pre_correlation_features
+)
+feature_report["used_before_vif_pruning"] = feature_report["feature"].isin(
+    pre_vif_features
+)
+feature_report["used_in_model"] = feature_report["feature"].isin(selected_features)
+feature_report["correlation_pruned"] = (
+    feature_report["used_before_correlation_pruning"]
+    & ~feature_report["used_before_vif_pruning"]
+)
+feature_report["vif_pruned"] = (
+    feature_report["used_before_vif_pruning"] & ~feature_report["used_in_model"]
+)
 
-    metrics = []
-    probabilities = {}
-    scores = {}
+if not selected_features:
+    raise ValueError("No features passed data-quality screening.")
 
-    for split_name, mask in masks.items():
-        scores[split_name] = model.decision_function(X.loc[mask])
-        probabilities[split_name] = model.predict_proba(X.loc[mask])[:, 1]
-        metrics.append(metrics_row(split_name, y.loc[mask], probabilities[split_name]))
+write_sample_audit(sample, raw_features, selected_features, feature_report)
+correlation_pruning.to_csv(OUTPUT_DIR / "correlation_pruning.csv", index=False)
+vif_pruning.to_csv(OUTPUT_DIR / "vif_pruning.csv", index=False)
+X = X_all[selected_features]
 
-    pd.DataFrame(metrics).to_csv(OUTPUT_DIR / "metrics.csv", index=False)
-    product_metrics = metrics_by_product(sample, y, masks, probabilities)
-    product_metrics.to_csv(OUTPUT_DIR / "metrics_by_product.csv", index=False)
-    submodel_metrics = train_product_submodels(sample, X, y)
-    submodel_metrics.to_csv(OUTPUT_DIR / "submodel_metrics.csv", index=False)
+len(raw_features), len(pre_vif_features), len(selected_features), vif_pruning
 
-    all_predictions = []
-    for split_name, mask in masks.items():
-        predictions = make_predictions(
-            sample,
-            mask,
-            probabilities[split_name],
-            scores[split_name],
-        )
-        predictions["split"] = split_name
-        all_predictions.append(predictions)
+# %% [markdown]
+# ## Krok 3: raporty analizy zmiennych
+# Wygenerowanie skoroszytów Excel z analizą zmiennych, Gini i binningiem.
 
-    pd.concat(all_predictions, ignore_index=True).to_csv(
-        OUTPUT_DIR / "predictions.csv", index=False
-    )
-    all_predictions[-1].to_csv(OUTPUT_DIR / "oot_test_predictions.csv", index=False)
+# %%
+big_scorecard, gini_vars, variable_details = write_excel_analysis_reports(
+    X, y, sample, masks
+)
 
-    calibration_table(y.loc[masks["test"]], probabilities["test"]).to_csv(
-        OUTPUT_DIR / "oot_test_calibration.csv", index=False
-    )
-    feature_importance(model).head(100).to_csv(
-        OUTPUT_DIR / "top_feature_importance.csv", index=False
-    )
-    write_model_report(
+gini_vars.head()
+
+# %% [markdown]
+# ## Krok 4: trening modelu
+# Zbudowanie pipeline sklearn i dopasowanie regresji logistycznej na próbie train.
+
+# %%
+model = build_model(X)
+model.fit(X.loc[masks["train"]], y.loc[masks["train"]])
+
+model
+
+# %% [markdown]
+# ## Krok 5: scoring i metryki
+# Obliczenie score, PD oraz metryk dla train, validation i test.
+
+# %%
+metrics = []
+probabilities = {}
+scores = {}
+
+for split_name, mask in masks.items():
+    scores[split_name] = model.decision_function(X.loc[mask])
+    probabilities[split_name] = model.predict_proba(X.loc[mask])[:, 1]
+    metrics.append(metrics_row(split_name, y.loc[mask], probabilities[split_name]))
+
+metrics_df = pd.DataFrame(metrics)
+metrics_df.to_csv(OUTPUT_DIR / "metrics.csv", index=False)
+
+metrics_df
+
+# %% [markdown]
+# ## Krok 6: walidacja po produkcie i submodele
+# Sprawdzenie jakości modelu osobno dla bieżącego produktu `css` i `ins`, a także trening oddzielnych submodeli.
+
+# %%
+product_metrics = metrics_by_product(sample, y, masks, probabilities)
+product_metrics.to_csv(OUTPUT_DIR / "metrics_by_product.csv", index=False)
+
+submodel_metrics = train_product_submodels(sample, X, y)
+submodel_metrics.to_csv(OUTPUT_DIR / "submodel_metrics.csv", index=False)
+
+product_metrics, submodel_metrics
+
+# %% [markdown]
+# ## Krok 7: eksport predykcji
+# Zapis predykcji dla wszystkich podziałów oraz osobnego pliku dla próby testowej out-of-time.
+
+# %%
+all_predictions = []
+for split_name, mask in masks.items():
+    predictions = make_predictions(
         sample,
-        X,
-        y,
-        masks,
-        probabilities,
-        model,
-        metrics,
-        product_metrics,
-        submodel_metrics,
-        big_scorecard,
-        gini_vars,
-        variable_details,
+        mask,
+        probabilities[split_name],
+        scores[split_name],
     )
-    write_segments_report(sample, y, masks, probabilities, scores)
-    export_sas_scoring_code(model, raw_features)
+    predictions["split"] = split_name
+    all_predictions.append(predictions)
 
-    test_metrics = metrics[-1]
-    print("PD Css Cross model: L1 regularized logistic regression")
-    print(f"Model ID: {MODEL_ID}")
-    print(f"Target: {TARGET}")
-    print(sample.attrs["sample_note"])
-    print(f"Train rows: {masks['train'].sum()}")
-    print(f"Validation rows: {masks['validation'].sum()}")
-    print(f"OOT test rows: {masks['test'].sum()}")
-    print(f"OOT test AUC: {test_metrics['auc']:.4f}")
-    print(f"OOT test Gini: {test_metrics['gini']:.4f}")
-    print(f"SAS scoring code: {SAS_PATH}")
-    print(f"Outputs written to: {OUTPUT_DIR}")
+pd.concat(all_predictions, ignore_index=True).to_csv(
+    OUTPUT_DIR / "predictions.csv", index=False
+)
+all_predictions[-1].to_csv(OUTPUT_DIR / "oot_test_predictions.csv", index=False)
 
+all_predictions[-1].head()
 
-if __name__ == "__main__":
-    main()
+# %% [markdown]
+# ## Krok 8: raporty końcowe
+# Zapis kalibracji, istotności zmiennych, raportu modelu, segmentów oraz kodu scoringowego SAS.
+
+# %%
+calibration_table(y.loc[masks["test"]], probabilities["test"]).to_csv(
+    OUTPUT_DIR / "oot_test_calibration.csv", index=False
+)
+feature_importance(model).head(100).to_csv(
+    OUTPUT_DIR / "top_feature_importance.csv", index=False
+)
+write_model_report(
+    sample,
+    X,
+    y,
+    masks,
+    probabilities,
+    model,
+    metrics,
+    product_metrics,
+    submodel_metrics,
+    big_scorecard,
+    gini_vars,
+    variable_details,
+)
+write_segments_report(sample, y, masks, probabilities, scores)
+export_sas_scoring_code(model, raw_features)
+
+test_metrics = metrics[-1]
+print("PD Css Cross model: L1 regularized logistic regression")
+print(f"Model ID: {MODEL_ID}")
+print(f"Target: {TARGET}")
+print(sample.attrs["sample_note"])
+print(f"Train rows: {masks['train'].sum()}")
+print(f"Validation rows: {masks['validation'].sum()}")
+print(f"OOT test rows: {masks['test'].sum()}")
+print(f"OOT test AUC: {test_metrics['auc']:.4f}")
+print(f"OOT test Gini: {test_metrics['gini']:.4f}")
+print(f"SAS scoring code: {SAS_PATH}")
+print(f"Outputs written to: {OUTPUT_DIR}")
+
+# %% [markdown]
+# ## Krok 9: biznesowe różnice między CSS i INS
+# Wygenerowanie raportu biznesowego pokazującego, czy dla aplikacji `css` i `ins` inne grupy zmiennych wpływają na decyzję modelu.
+
+# %%
+from pd_css_cross_business_outputs import write_business_report
+
+business_report_path = write_business_report()
+business_report_path

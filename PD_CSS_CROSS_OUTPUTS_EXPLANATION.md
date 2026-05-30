@@ -12,7 +12,7 @@ The folder contains outputs for the **PD Css Cross** model:
 P(default_cross12 = 1)
 ```
 
-The business task is to estimate the probability that a cross-sold cash loan defaults within 12 months, using information available at the time of applying for an instalment loan.
+The business task is to estimate the probability that the next/cross-sold product defaults within 12 months, using information available at the current loan application moment. The current application can be either `ins` or `css`.
 
 ## 1. `sample_definition.csv`
 
@@ -23,14 +23,14 @@ Important fields:
 ```text
 model_id = PD_CSS_CROSS
 target = default_cross12
-product = ins
+product = all
 decision = A
 cross_response = 1
 ```
 
 Interpretation:
 
-The model is built on accepted instalment-loan applications where the customer accepted/took the cross-sold cash loan. The target `default_cross12` tells whether the related cross-sold cash loan defaulted within 12 months.
+The model is built on accepted applications of any product where the customer accepted/took the cross-sold product. The target `default_cross12` tells whether the related next/cross-sold product defaulted within 12 months.
 
 Important defence point:
 
@@ -96,13 +96,13 @@ The report checks:
 
 Defence point:
 
-> Before modelling, I performed a basic feature-quality screen and rejected variables that were constant, too sparse, too dominated by one value, too high-cardinality, or weak in univariate Gini.
+> Before modelling, I produced a feature-quality diagnostic screen showing which variables are sparse, dominated by one value, high-cardinality, or weak in univariate Gini. In the current run, all leakage-safe variables are still passed to the L1 model, so the quality screen is diagnostic rather than the active model filter.
 
 ## 5. `selected_features.csv`
 
-This file lists features that passed the quality screen and were allowed into the modelling pipeline.
+This file lists features that were allowed into the modelling pipeline.
 
-It does not mean every feature is highly important in the final model. It means the feature passed the screening rules and was available for model training.
+In the current run, `FEATURE_SELECTION_MODE = "all_leakage_safe"`, so this file contains all leakage-safe candidate variables. It does not mean every feature is highly important in the final model; weak terms are controlled by L1 regularization and can receive zero or near-zero coefficients.
 
 ## 6. `metrics.csv`
 
@@ -130,27 +130,82 @@ log_loss
 Current model results are approximately:
 
 ```text
-Train Gini:      0.5370
-Validation Gini: 0.5488
-Test Gini:       0.5462
+Train Gini:      0.8092
+Validation Gini: 0.7838
+Test Gini:       0.8123
 ```
 
 Interpretation:
 
-> The model has moderate discriminatory power. The validation and test Gini are close to each other, which is more important than the earlier Excel-based result because this run uses the raw SAS source population.
+> The pooled model has strong discriminatory power, but product-level validation must be checked because the `css` and `ins` current-application populations behave differently.
 
 Also compare:
 
 ```text
-test bad_rate          ~= 0.2606
-test predicted_pd_mean ~= 0.2939
+test bad_rate          ~= 0.4312
+test predicted_pd_mean ~= 0.4546
 ```
 
 Interpretation:
 
 > The average predicted PD is somewhat higher than the actual default rate on the out-of-time test sample, so calibration should be reviewed bucket by bucket rather than judged only by the average.
 
-## 7. `oot_test_calibration.csv`
+## 7. `metrics_by_product.csv`
+
+This file validates the pooled model separately by current application product.
+
+Current out-of-time test results are approximately:
+
+```text
+css test Gini: 0.8318
+ins test Gini: 0.5415
+```
+
+Interpretation:
+
+> The pooled model works much better for current `css` applications than for current `ins` applications. This means the high pooled Gini should not be defended alone; product-level validation is necessary.
+
+## 8. `submodel_metrics.csv`
+
+This file trains and validates separate models for current `css` and current `ins` applications.
+
+Current out-of-time test results are approximately:
+
+```text
+css submodel test Gini: 0.8382
+ins submodel test Gini: 0.6012
+```
+
+Interpretation:
+
+> The separate `ins` submodel performs better than the pooled model on `ins` applications, but it is still much weaker than the `css` model. This supports reporting product-specific performance and potentially keeping product-specific submodels if the business process allows it.
+
+## 9. `Model_report.xlsx`
+
+This workbook contains the consolidated model analysis report.
+
+Important sheets:
+
+```text
+Main_measures
+Effects
+Gini_over_time
+Scorecard
+Variable importance
+VIF_raw_features
+VIF_all_features
+VIF_active_terms
+Product_validation
+Submodel_comparison
+Calibration
+Variable
+```
+
+VIF interpretation:
+
+> `VIF_all_features` contains VIF for all encoded model terms. `VIF_active_terms` contains only terms with non-zero final coefficients. `VIF_raw_features` summarizes VIF back to the original raw feature names. Infinite VIF means exact or near-exact collinearity in the encoded design matrix.
+
+## 10. `oot_test_calibration.csv`
 
 This file checks calibration on the out-of-time test sample.
 
@@ -174,7 +229,7 @@ mean_pd ~= observed_default_rate
 
 Some differences are normal because the test sample is not very large.
 
-## 8. `predictions.csv`
+## 11. `predictions.csv`
 
 This file contains predictions for all splits:
 
@@ -202,13 +257,13 @@ For each observation, the file contains:
 - predicted probability of default;
 - data split.
 
-## 9. `oot_test_predictions.csv`
+## 12. `oot_test_predictions.csv`
 
 This file contains predictions only for the out-of-time test sample.
 
 It is useful when showing performance specifically on future/unseen periods.
 
-## 10. `top_feature_importance.csv`
+## 13. `top_feature_importance.csv`
 
 This file lists the most important transformed model features.
 
@@ -232,7 +287,7 @@ cat__app_char_job_code_Contract
 
 means the `Contract` category from `app_char_job_code`.
 
-## 11. `sas_scoring_terms.csv`
+## 14. `sas_scoring_terms.csv`
 
 This is a technical audit file for the SAS exporter.
 
@@ -242,7 +297,7 @@ Defence point:
 
 > I used this file to verify which transformed model terms were exported into the SAS scoring code.
 
-## 12. `scoring_code.sas`
+## 15. `scoring_code.sas`
 
 This is the most important file for the SAS simulation process.
 
@@ -268,23 +323,24 @@ This file is intended to be included by `%include` in `decision_engine.sas`.
 ## Full Process to Explain During Defence
 
 1. I built the `PD_CSS_CROSS` model using `abt_app.sas7bdat`.
-2. The population is accepted instalment-loan applications with `cross_response = 1`.
-3. This is correct because the model is supposed to work at the time of applying for an instalment loan.
-4. The target is `default_cross12`, which marks default of the related cross-sold cash loan within 12 months.
+2. The population is accepted applications of any product with `cross_response = 1`.
+3. This is correct because the model is supposed to work at the current application moment and predict the default of the next/cross-sold product.
+4. The target is `default_cross12`, which marks default of the linked next/cross-sold product within 12 months.
 5. I removed rows where `default_cross12` is missing, because missing target does not mean non-default.
 6. Candidate variables came from `app`, `act`, `agr`, and `ags` groups.
 7. I excluded leakage variables such as default variables and cross-response variables.
-8. I performed feature-quality screening.
+8. I produced feature-quality diagnostics, while the current run keeps all leakage-safe candidates.
 9. I split the data out-of-time into train, validation, and test.
 10. I trained a logistic regression model.
 11. I evaluated the model using Gini, AUC, Brier score, log-loss, and calibration.
-12. The out-of-time test Gini is around `0.55`, which indicates moderate discriminatory power.
-13. The average predicted PD is somewhat higher than the actual default rate on the test sample, so I reviewed calibration on the test buckets.
-14. I generated `scoring_code.sas`, which creates `SCORE_PD_CSS_CROSS` and `PD_CSS_CROSS` for use in the SAS simulation process.
+12. The pooled out-of-time test Gini is around `0.81`, which indicates strong discriminatory power.
+13. I also validated performance separately for current `ins` and current `css` applications, and trained separate product-specific submodels to check whether the relationship differs by product.
+14. The average predicted PD is somewhat higher than the actual default rate on the test sample, so I reviewed calibration on the test buckets.
+15. I generated `scoring_code.sas`, which creates `SCORE_PD_CSS_CROSS` and `PD_CSS_CROSS` for use in the SAS simulation process.
 
 ## Short Defence Statement
 
-> The PD Css Cross model measures the risk that a cross-sold cash loan defaults within 12 months, using only information available at the instalment-loan application moment. The model is trained on accepted instalment-loan applications with `cross_response = 1` and known `default_cross12`. It uses out-of-time validation, achieves a test Gini around 0.55, and produces SAS scoring code that calculates both `SCORE_PD_CSS_CROSS` and `PD_CSS_CROSS` for the simulation engine.
+> The PD Css Cross model measures the risk that the next/cross-sold product defaults within 12 months, using only information available at the current application moment. The model is trained on accepted applications of any product with `cross_response = 1` and known `default_cross12`. It uses out-of-time validation, achieves a pooled test Gini around 0.81, and produces SAS scoring code that calculates both `SCORE_PD_CSS_CROSS` and `PD_CSS_CROSS` for the simulation engine.
 
 ## Feature Selection
 
@@ -292,10 +348,10 @@ Feature selection happens in two main stages:
 
 ```text
 1. raw candidate selection
-2. feature-quality and predictive-power screening
+2. leakage exclusion plus L1 regularization
 ```
 
-The final logistic model also uses L1 regularization, which further reduces the impact of weak predictors.
+The feature-quality report is still generated, but in the current run it is diagnostic. The final logistic model uses L1 regularization, which reduces or removes weak transformed terms.
 
 ### 1. Raw Candidate Selection
 
@@ -317,7 +373,7 @@ Business meaning:
 - `act_` - current customer/account state;
 - `agr_`, `ags_` - historical behavioural aggregates.
 
-These variables are appropriate because they should be available at the instalment-loan application moment.
+These variables are appropriate because they should be available at the current application moment.
 
 ### 2. Leakage Exclusion
 
@@ -382,11 +438,11 @@ selected
 rejection_reason
 ```
 
-Only the training sample is used for this screening. This avoids using validation or test information during model development.
+Only the training sample is used for this diagnostic screen. This avoids using validation or test information during model development.
 
 ### 5. Missing-Rate Filter
 
-Variables are rejected if more than 98% of training values are missing:
+The diagnostic screen flags variables if more than 98% of training values are missing:
 
 ```python
 MAX_MISSING_RATE = 0.98
@@ -398,7 +454,7 @@ Reason:
 
 ### 6. Constant or Empty Feature Filter
 
-Variables are rejected if they have one or fewer distinct non-missing values:
+The diagnostic screen flags variables if they have one or fewer distinct non-missing values:
 
 ```python
 nunique <= 1
@@ -410,7 +466,7 @@ Reason:
 
 ### 7. Dominant-Value Filter
 
-Variables are rejected if one value represents more than 99.5% of the training sample:
+The diagnostic screen flags variables if one value represents more than 99.5% of the training sample:
 
 ```python
 MAX_DOMINANT_SHARE = 0.995
@@ -422,7 +478,7 @@ Reason:
 
 ### 8. High-Cardinality Categorical Filter
 
-Categorical variables are rejected if they have more than 50 distinct levels:
+The diagnostic screen flags categorical variables if they have more than 50 distinct levels:
 
 ```python
 MAX_CATEGORY_LEVELS = 50
@@ -454,17 +510,17 @@ For categorical variables:
 
 Reason:
 
-> I kept variables with at least minimal individual predictive power on the training sample.
+> This diagnostic identifies variables with very weak standalone predictive power on the training sample.
 
 ### 10. Selected Features
 
-Features that pass all filters are saved in:
+Features used by the model are saved in:
 
 ```text
 outputs/pd_css_cross/selected_features.csv
 ```
 
-Rejected features and reasons are visible in:
+Because the current run uses `FEATURE_SELECTION_MODE = "all_leakage_safe"`, this file contains all leakage-safe candidate variables, not only variables that pass the diagnostic screen. Diagnostic flags and reasons are visible in:
 
 ```text
 outputs/pd_css_cross/feature_quality.csv
@@ -472,7 +528,7 @@ outputs/pd_css_cross/feature_quality.csv
 
 ### 11. Model-Level Selection
 
-After screening, features enter the logistic regression pipeline.
+After leakage exclusion, features enter the logistic regression pipeline.
 
 The model uses:
 
@@ -480,11 +536,11 @@ The model uses:
 LogisticRegression(
     penalty="l1",
     solver="liblinear",
-    C=0.05
+    C=0.3
 )
 ```
 
-L1 regularization acts as an additional selection mechanism:
+L1 regularization acts as the model-level selection mechanism:
 
 - weak predictors receive coefficients close to zero;
 - stronger predictors keep meaningful coefficients;
@@ -520,4 +576,4 @@ These names come from the preprocessing pipeline:
 
 ### Short Defence Statement About Feature Selection
 
-> Candidate variables were taken from application, activity, and historical aggregate fields available at the instalment-loan application moment. I excluded target and future-looking variables to avoid leakage. Then I screened variables on the training sample for missingness, low variation, excessive cardinality, dominance by one value, and weak univariate Gini. The remaining variables were passed to an L1-regularized logistic regression, which further reduced the influence of weak predictors. Final feature importance was reported from the trained model coefficients.
+> Candidate variables were taken from application, activity, and historical aggregate fields available at the current application moment. I excluded target and future-looking variables to avoid leakage. The model uses all leakage-safe candidates with L1 regularization, and product-level validation plus separate `ins`/`css` submodel comparisons are reported to show how performance differs by current application product.
