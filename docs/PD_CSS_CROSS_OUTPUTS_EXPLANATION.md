@@ -25,12 +25,12 @@ model_id = PD_CSS_CROSS
 target = default_cross12
 product = all
 decision = A
-cross_response = 1
+no cross_response prefilter
 ```
 
 Interpretation:
 
-The model is built on accepted applications of any product where the customer accepted/took the cross-sold product. The target `default_cross12` tells whether the related next/cross-sold product defaulted within 12 months.
+The model is built on accepted applications of any product where `default_cross12` is known. The active notebook does not filter to `cross_response = 1`. The target `default_cross12` tells whether the related next/cross-sold product defaulted within 12 months.
 
 Important defence point:
 
@@ -323,7 +323,7 @@ This file is intended to be included by `%include` in `decision_engine.sas`.
 ## Full Process to Explain During Defence
 
 1. I built the `PD_CSS_CROSS` model using `abt_app.sas7bdat`.
-2. The population is accepted applications of any product with `cross_response = 1`.
+2. The population is accepted applications of any product with known `default_cross12`; there is no `cross_response = 1` prefilter in the active notebook.
 3. This is correct because the model is supposed to work at the current application moment and predict the default of the next/cross-sold product.
 4. The target is `default_cross12`, which marks default of the linked next/cross-sold product within 12 months.
 5. I removed rows where `default_cross12` is missing, because missing target does not mean non-default.
@@ -340,7 +340,7 @@ This file is intended to be included by `%include` in `decision_engine.sas`.
 
 ## Short Defence Statement
 
-> The PD Css Cross model measures the risk that the next/cross-sold product defaults within 12 months, using only information available at the current application moment. The model is trained on accepted applications of any product with `cross_response = 1` and known `default_cross12`. It uses out-of-time validation, achieves a pooled test Gini around 0.81, and produces SAS scoring code that calculates both `SCORE_PD_CSS_CROSS` and `PD_CSS_CROSS` for the simulation engine.
+> The PD Css Cross model measures the risk that the next/cross-sold product defaults within 12 months, using only information available at the current application moment. The active notebook trains on accepted applications of any product with known `default_cross12`, without a `cross_response = 1` prefilter. It uses out-of-time validation, achieves a pooled test Gini around 0.81, and produces SAS scoring code that calculates both `SCORE_PD_CSS_CROSS` and `PD_CSS_CROSS` for the simulation engine.
 
 ## Feature Selection
 

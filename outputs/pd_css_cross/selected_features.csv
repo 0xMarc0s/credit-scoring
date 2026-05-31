@@ -50,9 +50,9 @@ agr6_Mean_CMaxI_Due
 ags6_Mean_CMaxI_Due
 agr6_Min_CMaxI_Due
 agr6_Mean_CMaxC_Days
-agr6_Max_CMaxC_Days
 ags6_Mean_CMaxC_Due
 agr6_Mean_CMaxA_Days
+agr6_Max_CMaxA_Days
 agr6_Mean_CMaxA_Due
 agr6_Min_CMaxA_Due
 ags9_Mean_CMaxI_Days
@@ -61,9 +61,9 @@ ags9_Max_CMaxI_Days
 ags9_Min_CMaxI_Days
 ags9_Max_CMaxI_Due
 ags9_Min_CMaxI_Due
-agr9_Min_CMaxC_Days
+agr9_Max_CMaxC_Days
+ags9_Min_CMaxC_Days
 ags9_Mean_CMaxC_Due
-agr9_Max_CMaxA_Days
 agr9_Min_CMaxA_Due
 agr12_Mean_CMaxI_Days
 agr12_Max_CMaxI_Days
@@ -74,7 +74,6 @@ ags12_Mean_CMaxI_Due
 agr12_Max_CMaxI_Due
 agr12_Min_CMaxI_Due
 agr12_Mean_CMaxC_Days
-ags12_Mean_CMaxC_Days
 agr12_Mean_CMaxA_Days
 ags12_Max_CMaxA_Days
 ags12_Min_CMaxA_Days
