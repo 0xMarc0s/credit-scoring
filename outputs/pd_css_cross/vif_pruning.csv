@@ -1,0 +1,4 @@
+step,dropped_feature,max_vif,univariate_abs_gini_train,threshold
+1,app_char_job_code,17.369113269614925,0.05715262411755129,10.0
+2,ags9_Mean_CMaxI_Days,11.82894075418179,0.032529071716620006,10.0
+3,ags9_Mean_CMaxC_Due,10.457484974344462,0.29419308026092716,10.0
