@@ -1,63 +1,516 @@
-proc sql;
-create table &zbior._score as
-select indataset.*
-, (
-  0.479973790769
-  + -0.796837762008 * ((coalesce(act_age, 63.000000000000) - 63.303571428571) / 10.043114625386)
-  + 0.847370195499 * ((coalesce(act_cc, 0.539839407041) - 0.548233356499) / 0.176239459308)
-  + 0.265055938056 * ((coalesce(app_income, 1531.000000000000) - 1720.877279635258) / 1177.770291669692)
-  + -0.912685157821 * ((coalesce(app_number_of_children, 1.000000000000) - 0.945668693009) / 1.017183410621)
-  + 0.367114196757 * ((coalesce(act_cins_min_seniority, 27.000000000000) - 33.954787234043) / 25.206861640016)
-  + 0.013192859820 * ((coalesce(act_cins_n_statC, 2.000000000000) - 2.757978723404) / 1.988457617249)
-  + -0.042926500971 * ((coalesce(act_cins_n_statB, 0.000000000000) - 0.206306990881) / 0.648523956512)
-  + -0.094328377449 * ((coalesce(act_cins_n_loans_act, 1.000000000000) - 1.039893617021) / 0.207029917787)
-  + 0.119776444667 * ((coalesce(act_cins_maxdue, 0.000000000000) - 0.034574468085) / 0.227191893140)
-  + 0.115129542617 * ((coalesce(act_cins_utl, 0.625000000000) - 0.619203288585) / 0.169574285067)
-  + -0.035364383275 * ((coalesce(act_ccss_seniority, 76.000000000000) - 76.391717325228) / 43.980226367500)
-  + 0.076586049369 * ((coalesce(act_ccss_min_seniority, 4.000000000000) - 7.856762917933) / 9.986598155167)
-  + -1.960837051291 * ((coalesce(act_ccss_n_statC, 1.000000000000) - 5.718085106383) / 8.581161312077)
-  + 0.203981934227 * ((coalesce(act_ccss_n_statB, 1.000000000000) - 2.371960486322) / 3.185193869497)
-  + -0.024861993990 * ((coalesce(act_ccss_min_pninst, 3.000000000000) - 4.463145896657) / 3.646646935519)
-  + 0.238961874048 * ((coalesce(act_ccss_min_lninst, 5.000000000000) - 6.419072948328) / 5.396890728532)
-  + 0.039203058621 * ((coalesce(act_ccss_dueutl, 0.000000000000) - 0.009571301925) / 0.014541218440)
-  + 0.007990556296 * ((coalesce(act_ccss_cc, 0.804950083498) - 0.879637106943) / 0.396122692135)
-  + 0.041796354419 * ((coalesce(ags3_Max_CMaxI_Days, 15.000000000000) - 14.642097264438) / 0.849381954615)
-  + 0.108503782533 * ((coalesce(ags3_Mean_CMaxC_Days, 14.000000000000) - 13.854989868288) / 1.147068900890)
-  + -0.026054051150 * ((coalesce(ags3_Max_CMaxC_Days, 15.000000000000) - 14.794452887538) / 0.860700351926)
-  + 0.002543838759 * ((coalesce(act3_n_good_days, 1.000000000000) - 1.443389057751) / 0.969435051852)
-  + 0.024963080474 * ((coalesce(agr6_Max_CMaxI_Days, 15.000000000000) - 14.924012158055) / 0.325465782435)
-  + -0.001394548307 * ((coalesce(ags6_Mean_CMaxI_Due, 0.000000000000) - 0.032174518744) / 0.152939051149)
-  + -0.007940776407 * ((coalesce(agr6_Max_CMaxC_Days, 15.000000000000) - 15.058130699088) / 0.588034825127)
-  + -0.070990660349 * ((coalesce(ags6_Mean_CMaxA_Days, 14.333333333333) - 14.073055977710) / 0.847247452301)
-  + 0.427345183011 * ((coalesce(agr6_Mean_CMaxA_Due, 0.500000000000) - 0.487208713273) / 0.408435632210)
-  + 0.220309141229 * ((coalesce(ags6_Min_CMaxA_Due, 0.000000000000) - 0.094604863222) / 0.295253348695)
-  + -0.084438767837 * ((coalesce(agr9_Mean_CMaxI_Days, 12.666666666667) - 12.668144208038) / 0.429723567682)
-  + 0.077629639711 * ((coalesce(agr9_Max_CMaxI_Days, 15.000000000000) - 14.973404255319) / 0.185059648924)
-  + -0.029408367254 * ((coalesce(ags9_Max_CMaxI_Days, 15.000000000000) - 14.836246200608) / 0.709365837035)
-  + 0.058443596789 * ((coalesce(ags9_Min_CMaxI_Due, 0.000000000000) - 0.003799392097) / 0.061522001893)
-  + 0.047469043292 * ((coalesce(agr9_Max_CMaxC_Due, 1.000000000000) - 1.080547112462) / 0.631290234553)
-  + 0.052912253801 * ((coalesce(ags9_Min_CMaxC_Due, 0.000000000000) - 0.034574468085) / 0.315417971483)
-  + -0.115946397303 * ((coalesce(ags9_Max_CMaxA_Days, 15.000000000000) - 15.138297872340) / 0.764837918759)
-  + 0.082040434434 * ((coalesce(ags12_Max_CMaxI_Days, 15.000000000000) - 14.838905775076) / 0.694555478929)
-  + -0.127563918695 * ((coalesce(agr12_Min_CMaxI_Days, 9.000000000000) - 8.852963525836) / 1.082482948141)
-  + 0.123206068755 * ((coalesce(ags12_Min_CMaxI_Days, 9.000000000000) - 9.146276595745) / 1.951217715672)
-  + -0.050703525327 * ((coalesce(agr12_Max_CMaxI_Due, 0.000000000000) - 0.079027355623) / 0.309157541182)
-  + 0.047538356268 * ((coalesce(ags12_Min_CMaxI_Due, 0.000000000000) - 0.007598784195) / 0.113402784840)
-  + -0.028969637963 * ((coalesce(agr12_Mean_CMaxC_Days, 14.250000000000) - 14.132630445795) / 0.658499260794)
-  + 0.103103509797 * ((coalesce(ags12_Max_CMaxC_Due, 1.000000000000) - 1.177051671733) / 0.776628087169)
-  + 0.048456186952 * ((coalesce(ags12_Min_CMaxC_Due, 0.000000000000) - 0.030015197568) / 0.386231893759)
-  + 0.115380042458 * ((coalesce(agr12_Mean_CMaxA_Days, 14.250000000000) - 14.168059777102) / 0.624111290729)
-  + -0.156207734526 * ((coalesce(ags12_Min_CMaxA_Days, 12.000000000000) - 11.376139817629) / 2.358263423706)
-  + -0.074098450524 * ((coalesce(ags12_Min_CMaxA_Due, 0.000000000000) - 0.008358662614) / 0.091042821646)
-  + 0.609481564385 * (case when (app_char_gender = 'Male') then 1 else 0 end)
-  + -0.390866525205 * (case when (app_char_marital_status = 'Maried' or missing(app_char_marital_status)) then 1 else 0 end)
-  + -0.036010870461 * (case when (app_char_marital_status = 'Widowed') then 1 else 0 end)
-  + -0.221330177166 * (case when (app_char_city = 'Large') then 1 else 0 end)
-  + -0.103598639077 * (case when (app_char_city = 'Medium') then 1 else 0 end)
-  + -0.335900910107 * (case when (app_char_city = 'Small') then 1 else 0 end)
-  + -0.274749509442 * (case when (app_char_home_status = 'Rental') then 1 else 0 end)
-  + 0.057757277186 * (case when (app_char_cars = 'Owner' or missing(app_char_cars)) then 1 else 0 end)
-) as SCORE_PD_CSS_CROSS
-, 1/(1+exp(-calculated SCORE_PD_CSS_CROSS)) as PD_CSS_CROSS
-from &zbior as indataset;
-quit;
+proc sql; 
+create table  &zbior._score as 
+select indataset.*  
+, case 
+when 48.5 <= act_age  and  act_age < 57.5 then 4.0 
+when act_age < 48.5 then 18.0 
+when 70.500 <= act_age then 23.0 
+when 57.5 <= act_age  and  act_age < 70.5 then 30.0 
+else 4.0 end as PSC_act_age 
+ 
+, case 
+when 0.809 <= act_cc then 4.0 
+when 0.548 <= act_cc  and  act_cc < 0.728 then 6.0 
+when 0.728 <= act_cc  and  act_cc < 0.809 then 10.0 
+when act_cc < 0.548 then 13.0 
+else 4.0 end as PSC_act_cc 
+ 
+, case 
+when 4.696 <= act_loaninc then 4.0 
+when 3.648 <= act_loaninc  and  act_loaninc < 4.291 then 5.0 
+when act_loaninc < 3.648 then 8.0 
+when 4.291 <= act_loaninc  and  act_loaninc < 4.696 then 13.0 
+else 4.0 end as PSC_act_loaninc 
+ 
+, case 
+when app_income < 582.5 then 4.0 
+when 582.5 <= app_income  and  app_income < 1064.5 then 16.0 
+when 2126.500 <= app_income then 18.0 
+when 1064.5 <= app_income  and  app_income < 2126.5 then 27.0 
+else 4.0 end as PSC_app_income 
+ 
+, case 
+when 18 <= app_n_installments  and  app_n_installments < 30 then 4.0 
+when 30.000 <= app_n_installments then 6.0 
+when app_n_installments < 18 then 7.0 
+else 4.0 end as PSC_app_n_installments 
+ 
+, case 
+when app_number_of_children < 0.5 then 4.0 
+when 0.5 <= app_number_of_children  and  app_number_of_children < 1.5 then 11.0 
+when 1.5 <= app_number_of_children  and  app_number_of_children < 2.5 then 23.0 
+when 2.500 <= app_number_of_children then 64.0 
+else 4.0 end as PSC_app_number_of_children 
+ 
+, case 
+when 199.5 <= app_installment  and  app_installment < 208.5 then 4.0 
+when 121.5 <= app_installment  and  app_installment < 199.5 then 26.0 
+when 208.500 <= app_installment then 26.0 
+when app_installment < 121.5 then 34.0 
+else 4.0 end as PSC_app_installment 
+ 
+, case 
+when 1.477 <= act_call_cc then 4.0 
+when 0.75 <= act_call_cc  and  act_call_cc < 0.979 then 4.0 
+when 0.979 <= act_call_cc  and  act_call_cc < 1.477 then 11.0 
+when act_call_cc < 0.75 then 14.0 
+else 4.0 end as PSC_act_call_cc 
+ 
+, case 
+when act_cins_n_loan < 0.5 then 4.0 
+when 1.500 <= act_cins_n_loan then 4.0 
+when 0.5 <= act_cins_n_loan  and  act_cins_n_loan < 1.5 then 5.0 
+else 4.0 end as PSC_act_cins_n_loan 
+ 
+, case 
+when 16.5 <= act_cins_min_seniority  and  act_cins_min_seniority < 31.5 then 4.0 
+when act_cins_min_seniority < 16.5 then 8.0 
+when 31.5 <= act_cins_min_seniority  and  act_cins_min_seniority < 55.5 then 9.0 
+when act_cins_min_seniority is null then 12.0 
+when 55.500 <= act_cins_min_seniority then 19.0 
+else 4.0 end as PSC_act_cins_min_seniority 
+ 
+, case 
+when 0.5 <= act_cins_n_statC  and  act_cins_n_statC < 1.5 then 4.0 
+when act_cins_n_statC < 0.5 then 5.0 
+when 1.5 <= act_cins_n_statC  and  act_cins_n_statC < 2.5 then 5.0 
+when 2.500 <= act_cins_n_statC then 6.0 
+when act_cins_n_statC is null then 7.0 
+else 4.0 end as PSC_act_cins_n_statC 
+ 
+, case 
+when 1.500 <= act_cins_n_statB then 4.0 
+when act_cins_n_statB < 0.5 then -5.0 
+when 0.5 <= act_cins_n_statB  and  act_cins_n_statB < 1.5 then -13.0 
+when act_cins_n_statB is null then -47.0 
+else 4.0 end as PSC_act_cins_n_statB 
+ 
+, case 
+when act_cins_n_loans_act < 1.5 then 4.0 
+when 1.500 <= act_cins_n_loans_act then -7.0 
+when act_cins_n_loans_act is null then -24.0 
+else 4.0 end as PSC_act_cins_n_loans_act 
+ 
+, case 
+when 0.500 <= act_cins_maxdue then 4.0 
+when act_cins_maxdue < 0.5 then 32.0 
+when act_cins_maxdue is null then 48.0 
+else 4.0 end as PSC_act_cins_maxdue 
+ 
+, case 
+when 23.500 <= act_cins_min_pninst then 4.0 
+when 11.5 <= act_cins_min_pninst  and  act_cins_min_pninst < 21.5 then 7.0 
+when 21.5 <= act_cins_min_pninst  and  act_cins_min_pninst < 23.5 then 15.0 
+when act_cins_min_pninst < 11.5 then 17.0 
+when act_cins_min_pninst is null then 23.0 
+else 4.0 end as PSC_act_cins_min_pninst 
+ 
+, case 
+when 0.986 <= act_cins_utl then 4.0 
+when 0.439 <= act_cins_utl  and  act_cins_utl < 0.844 then 13.0 
+when 0.844 <= act_cins_utl  and  act_cins_utl < 0.986 then 18.0 
+when act_cins_utl < 0.439 then 22.0 
+when act_cins_utl is null then 30.0 
+else 4.0 end as PSC_act_cins_utl 
+ 
+, case 
+when 0.575 <= act_cins_cc then 4.0 
+when act_cins_cc < 0.29 then 10.0 
+when 0.47 <= act_cins_cc  and  act_cins_cc < 0.575 then 11.0 
+when 0.29 <= act_cins_cc  and  act_cins_cc < 0.47 then 19.0 
+when act_cins_cc is null then 22.0 
+else 4.0 end as PSC_act_cins_cc 
+ 
+, case 
+when act_ccss_seniority < 31.5 then 4.0 
+when 31.5 <= act_ccss_seniority  and  act_ccss_seniority < 42.5 then 4.0 
+when 42.5 <= act_ccss_seniority  and  act_ccss_seniority < 128.5 then 4.0 
+when act_ccss_seniority is null then 4.0 
+when 128.500 <= act_ccss_seniority then 4.0 
+else 4.0 end as PSC_act_ccss_seniority 
+ 
+, case 
+when 4.5 <= act_ccss_min_seniority  and  act_ccss_min_seniority < 16.5 then 4.0 
+when 16.5 <= act_ccss_min_seniority  and  act_ccss_min_seniority < 33.5 then -4.0 
+when act_ccss_min_seniority < 4.5 then -6.0 
+when act_ccss_min_seniority is null then -9.0 
+when 33.500 <= act_ccss_min_seniority then -11.0 
+else 4.0 end as PSC_act_ccss_min_seniority 
+ 
+, case 
+when act_ccss_n_statC < 1.5 then 4.0 
+when 1.5 <= act_ccss_n_statC  and  act_ccss_n_statC < 6.5 then 6.0 
+when act_ccss_n_statC is null then 28.0 
+when 6.5 <= act_ccss_n_statC  and  act_ccss_n_statC < 10.5 then 36.0 
+when 10.500 <= act_ccss_n_statC then 76.0 
+else 4.0 end as PSC_act_ccss_n_statC 
+ 
+, case 
+when 6.500 <= act_ccss_n_statB then 4.0 
+when 3.5 <= act_ccss_n_statB  and  act_ccss_n_statB < 6.5 then 4.0 
+when act_ccss_n_statB < 0.5 then 3.0 
+when 0.5 <= act_ccss_n_statB  and  act_ccss_n_statB < 3.5 then 3.0 
+when act_ccss_n_statB is null then 3.0 
+else 4.0 end as PSC_act_ccss_n_statB 
+ 
+, case 
+when 3.5 <= act_ccss_min_pninst  and  act_ccss_min_pninst < 11.5 then 4.0 
+when 11.500 <= act_ccss_min_pninst then 1.0 
+when act_ccss_min_pninst < 2.5 then 1.0 
+when 2.5 <= act_ccss_min_pninst  and  act_ccss_min_pninst < 3.5 then -7.0 
+when act_ccss_min_pninst is null then -7.0 
+else 4.0 end as PSC_act_ccss_min_pninst 
+ 
+, case 
+when 6.500 <= act_ccss_min_lninst then 4.0 
+when 3.5 <= act_ccss_min_lninst  and  act_ccss_min_lninst < 6.5 then 9.0 
+when 1.5 <= act_ccss_min_lninst  and  act_ccss_min_lninst < 3.5 then 18.0 
+when act_ccss_min_lninst is null then 23.0 
+when act_ccss_min_lninst < 1.5 then 31.0 
+else 4.0 end as PSC_act_ccss_min_lninst 
+ 
+, case 
+when 0.023 <= act_ccss_dueutl then 4.0 
+when 0.009 <= act_ccss_dueutl  and  act_ccss_dueutl < 0.023 then 5.0 
+when act_ccss_dueutl < 0.003 then 9.0 
+when act_ccss_dueutl is null then 10.0 
+when 0.003 <= act_ccss_dueutl  and  act_ccss_dueutl < 0.009 then 13.0 
+else 4.0 end as PSC_act_ccss_dueutl 
+ 
+, case 
+when 0.748 <= act_ccss_cc  and  act_ccss_cc < 0.981 then 4.0 
+when act_ccss_cc < 0.748 then 5.0 
+when 0.981 <= act_ccss_cc  and  act_ccss_cc < 1.369 then 7.0 
+when act_ccss_cc is null then 9.0 
+when 1.369 <= act_ccss_cc then 9.0 
+else 4.0 end as PSC_act_ccss_cc 
+ 
+, case 
+when agr3_Min_CMaxI_Days < 8.5 then 4.0 
+when 9.5 <= agr3_Min_CMaxI_Days  and  agr3_Min_CMaxI_Days < 11.5 then 4.0 
+when 8.5 <= agr3_Min_CMaxI_Days  and  agr3_Min_CMaxI_Days < 9.5 then 4.0 
+when 11.500 <= agr3_Min_CMaxI_Days then 4.0 
+when agr3_Min_CMaxI_Days is null then 3.0 
+else 4.0 end as PSC_agr3_Min_CMaxI_Days 
+ 
+, case 
+when 0.500 <= ags3_Max_CMaxI_Due then 4.0 
+when ags3_Max_CMaxI_Due < 0.5 then -12.0 
+when ags3_Max_CMaxI_Due is null then -27.0 
+else 4.0 end as PSC_ags3_Max_CMaxI_Due 
+ 
+, case 
+when ags3_Mean_CMaxC_Days < 13.833 then 4.0 
+when 13.833 <= ags3_Mean_CMaxC_Days  and  ags3_Mean_CMaxC_Days < 14.167 then 2.0 
+when 14.167 <= ags3_Mean_CMaxC_Days  and  ags3_Mean_CMaxC_Days < 14.583 then 1.0 
+when ags3_Mean_CMaxC_Days is null then -2.0 
+when 14.583 <= ags3_Mean_CMaxC_Days then -2.0 
+else 4.0 end as PSC_ags3_Mean_CMaxC_Days 
+ 
+, case 
+when 1.167 <= ags3_Mean_CMaxC_Due then 4.0 
+when 0.833 <= ags3_Mean_CMaxC_Due  and  ags3_Mean_CMaxC_Due < 1.167 then 2.0 
+when 0.583 <= ags3_Mean_CMaxC_Due  and  ags3_Mean_CMaxC_Due < 0.833 then 0.0 
+when ags3_Mean_CMaxC_Due < 0.583 then -2.0 
+when ags3_Mean_CMaxC_Due is null then -4.0 
+else 4.0 end as PSC_ags3_Mean_CMaxC_Due 
+ 
+, case 
+when ags3_Mean_CMaxA_Days < 14.167 then 4.0 
+when 14.167 <= ags3_Mean_CMaxA_Days  and  ags3_Mean_CMaxA_Days < 14.583 then 3.0 
+when 14.583 <= ags3_Mean_CMaxA_Days  and  ags3_Mean_CMaxA_Days < 14.833 then 3.0 
+when 14.833 <= ags3_Mean_CMaxA_Days then 3.0 
+when ags3_Mean_CMaxA_Days is null then 3.0 
+else 4.0 end as PSC_ags3_Mean_CMaxA_Days 
+ 
+, case 
+when ags3_Max_CMaxA_Days < 14.5 then 4.0 
+when 14.500 <= ags3_Max_CMaxA_Days then 3.0 
+when ags3_Max_CMaxA_Days is null then 2.0 
+else 4.0 end as PSC_ags3_Max_CMaxA_Days 
+ 
+, case 
+when 0.500 <= agr3_Min_CMaxA_Due then 4.0 
+when agr3_Min_CMaxA_Due < 0.5 then 7.0 
+when agr3_Min_CMaxA_Due is null then 9.0 
+else 4.0 end as PSC_agr3_Min_CMaxA_Due 
+ 
+, case 
+when 0.000 <= act3_n_arrears_days then 4.0 
+when act3_n_arrears_days is null then -25.0 
+else 4.0 end as PSC_act3_n_arrears_days 
+ 
+, case 
+when 2.500 <= act3_n_good_days then 4.0 
+when 1.5 <= act3_n_good_days  and  act3_n_good_days < 2.5 then 4.0 
+when 0.5 <= act3_n_good_days  and  act3_n_good_days < 1.5 then 6.0 
+when act3_n_good_days < 0.5 then 8.0 
+when act3_n_good_days is null then 9.0 
+else 4.0 end as PSC_act3_n_good_days 
+ 
+, case 
+when ags6_Mean_CMaxI_Days < 11.917 then 4.0 
+when 13.917 <= ags6_Mean_CMaxI_Days then 4.0 
+when 11.917 <= ags6_Mean_CMaxI_Days  and  ags6_Mean_CMaxI_Days < 12.367 then 4.0 
+when 12.367 <= ags6_Mean_CMaxI_Days  and  ags6_Mean_CMaxI_Days < 13.917 then 4.0 
+when ags6_Mean_CMaxI_Days is null then 5.0 
+else 4.0 end as PSC_ags6_Mean_CMaxI_Days 
+ 
+, case 
+when agr6_Max_CMaxI_Days < 14.5 then 4.0 
+when 14.500 <= agr6_Max_CMaxI_Days then -3.0 
+when agr6_Max_CMaxI_Days is null then -24.0 
+else 4.0 end as PSC_agr6_Max_CMaxI_Days 
+ 
+, case 
+when ags6_Max_CMaxI_Days < 13.5 then 4.0 
+when 14.500 <= ags6_Max_CMaxI_Days then 0.0 
+when 13.5 <= ags6_Max_CMaxI_Days  and  ags6_Max_CMaxI_Days < 14.5 then -0.0 
+when ags6_Max_CMaxI_Days is null then -7.0 
+else 4.0 end as PSC_ags6_Max_CMaxI_Days 
+ 
+, case 
+when 6.5 <= agr6_Min_CMaxI_Days  and  agr6_Min_CMaxI_Days < 9.5 then 4.0 
+when 9.5 <= agr6_Min_CMaxI_Days  and  agr6_Min_CMaxI_Days < 10.5 then 7.0 
+when agr6_Min_CMaxI_Days < 6.5 then 8.0 
+when 10.500 <= agr6_Min_CMaxI_Days then 11.0 
+when agr6_Min_CMaxI_Days is null then 18.0 
+else 4.0 end as PSC_agr6_Min_CMaxI_Days 
+ 
+, case 
+when 0.417 <= agr6_Mean_CMaxI_Due then 4.0 
+when 0.083 <= agr6_Mean_CMaxI_Due  and  agr6_Mean_CMaxI_Due < 0.417 then -16.0 
+when agr6_Mean_CMaxI_Due < 0.083 then -29.0 
+when agr6_Mean_CMaxI_Due is null then -53.0 
+else 4.0 end as PSC_agr6_Mean_CMaxI_Due 
+ 
+, case 
+when 0.450 <= ags6_Mean_CMaxI_Due then 4.0 
+when 0.083 <= ags6_Mean_CMaxI_Due  and  ags6_Mean_CMaxI_Due < 0.45 then 21.0 
+when ags6_Mean_CMaxI_Due < 0.083 then 29.0 
+when ags6_Mean_CMaxI_Due is null then 49.0 
+else 4.0 end as PSC_ags6_Mean_CMaxI_Due 
+ 
+, case 
+when 0.000 <= agr6_Min_CMaxI_Due then 4.0 
+when agr6_Min_CMaxI_Due is null then -6.0 
+else 4.0 end as PSC_agr6_Min_CMaxI_Due 
+ 
+, case 
+when agr6_Mean_CMaxC_Days < 14.25 then 4.0 
+when 14.25 <= agr6_Mean_CMaxC_Days  and  agr6_Mean_CMaxC_Days < 14.583 then 0.0 
+when agr6_Mean_CMaxC_Days is null then -1.0 
+when 14.583 <= agr6_Mean_CMaxC_Days  and  agr6_Mean_CMaxC_Days < 14.75 then -4.0 
+when 14.750 <= agr6_Mean_CMaxC_Days then -7.0 
+else 4.0 end as PSC_agr6_Mean_CMaxC_Days 
+ 
+, case 
+when 0.708 <= ags6_Mean_CMaxC_Due then 4.0 
+when 0.367 <= ags6_Mean_CMaxC_Due  and  ags6_Mean_CMaxC_Due < 0.708 then 15.0 
+when 0.183 <= ags6_Mean_CMaxC_Due  and  ags6_Mean_CMaxC_Due < 0.367 then 20.0 
+when ags6_Mean_CMaxC_Due < 0.183 then 25.0 
+when ags6_Mean_CMaxC_Due is null then 30.0 
+else 4.0 end as PSC_ags6_Mean_CMaxC_Due 
+ 
+, case 
+when agr6_Mean_CMaxA_Days < 14.417 then 4.0 
+when 14.417 <= agr6_Mean_CMaxA_Days  and  agr6_Mean_CMaxA_Days < 14.583 then 5.0 
+when 14.583 <= agr6_Mean_CMaxA_Days  and  agr6_Mean_CMaxA_Days < 14.75 then 5.0 
+when agr6_Mean_CMaxA_Days is null then 5.0 
+when 14.750 <= agr6_Mean_CMaxA_Days then 6.0 
+else 4.0 end as PSC_agr6_Mean_CMaxA_Days 
+ 
+, case 
+when 0.917 <= agr6_Mean_CMaxA_Due then 4.0 
+when 0.75 <= agr6_Mean_CMaxA_Due  and  agr6_Mean_CMaxA_Due < 0.917 then 4.0 
+when 0.417 <= agr6_Mean_CMaxA_Due  and  agr6_Mean_CMaxA_Due < 0.75 then 5.0 
+when agr6_Mean_CMaxA_Due < 0.417 then 6.0 
+when agr6_Mean_CMaxA_Due is null then 7.0 
+else 4.0 end as PSC_agr6_Mean_CMaxA_Due 
+ 
+, case 
+when 0.500 <= agr6_Min_CMaxA_Due then 4.0 
+when agr6_Min_CMaxA_Due < 0.5 then 35.0 
+when agr6_Min_CMaxA_Due is null then 51.0 
+else 4.0 end as PSC_agr6_Min_CMaxA_Due 
+ 
+, case 
+when ags9_Mean_CMaxI_Days < 11.944 then 4.0 
+when 12.211 <= ags9_Mean_CMaxI_Days  and  ags9_Mean_CMaxI_Days < 12.817 then 9.0 
+when 12.817 <= ags9_Mean_CMaxI_Days then 13.0 
+when 11.944 <= ags9_Mean_CMaxI_Days  and  ags9_Mean_CMaxI_Days < 12.211 then 19.0 
+when ags9_Mean_CMaxI_Days is null then 30.0 
+else 4.0 end as PSC_ags9_Mean_CMaxI_Days 
+ 
+, case 
+when ags9_Max_CMaxI_Days < 13.5 then 4.0 
+when 14.500 <= ags9_Max_CMaxI_Days then 10.0 
+when 13.5 <= ags9_Max_CMaxI_Days  and  ags9_Max_CMaxI_Days < 14.5 then 11.0 
+when ags9_Max_CMaxI_Days is null then 36.0 
+else 4.0 end as PSC_ags9_Max_CMaxI_Days 
+ 
+, case 
+when 0.000 <= ags9_Min_CMaxI_Due then 4.0 
+when ags9_Min_CMaxI_Due is null then -37.0 
+else 4.0 end as PSC_ags9_Min_CMaxI_Due 
+ 
+, case 
+when 15.500 <= agr9_Max_CMaxC_Days then 4.0 
+when agr9_Max_CMaxC_Days < 15.5 then -23.0 
+when agr9_Max_CMaxC_Days is null then -32.0 
+else 4.0 end as PSC_agr9_Max_CMaxC_Days 
+ 
+, case 
+when ags9_Min_CMaxC_Days < 11.5 then 4.0 
+when 11.5 <= ags9_Min_CMaxC_Days  and  ags9_Min_CMaxC_Days < 12.5 then 5.0 
+when 12.5 <= ags9_Min_CMaxC_Days  and  ags9_Min_CMaxC_Days < 13.5 then 14.0 
+when ags9_Min_CMaxC_Days is null then 16.0 
+when 13.500 <= ags9_Min_CMaxC_Days then 22.0 
+else 4.0 end as PSC_ags9_Min_CMaxC_Days 
+ 
+, case 
+when 11.708 <= agr12_Mean_CMaxI_Days  and  agr12_Mean_CMaxI_Days < 12.208 then 4.0 
+when agr12_Mean_CMaxI_Days < 11.708 then 12.0 
+when 12.208 <= agr12_Mean_CMaxI_Days  and  agr12_Mean_CMaxI_Days < 13.125 then 14.0 
+when 13.125 <= agr12_Mean_CMaxI_Days then 22.0 
+when agr12_Mean_CMaxI_Days is null then 24.0 
+else 4.0 end as PSC_agr12_Mean_CMaxI_Days 
+ 
+, case 
+when agr12_Max_CMaxI_Days < 15 then 4.0 
+when 15.000 <= agr12_Max_CMaxI_Days then -3.0 
+when agr12_Max_CMaxI_Days is null then -29.0 
+else 4.0 end as PSC_agr12_Max_CMaxI_Days 
+ 
+, case 
+when 14.500 <= ags12_Max_CMaxI_Days then 4.0 
+when 13.5 <= ags12_Max_CMaxI_Days  and  ags12_Max_CMaxI_Days < 14.5 then 3.0 
+when ags12_Max_CMaxI_Days < 13.5 then -0.0 
+when ags12_Max_CMaxI_Days is null then -8.0 
+else 4.0 end as PSC_ags12_Max_CMaxI_Days 
+ 
+, case 
+when agr12_Min_CMaxI_Days < 5.5 then 4.0 
+when 5.5 <= agr12_Min_CMaxI_Days  and  agr12_Min_CMaxI_Days < 9.5 then 4.0 
+when 9.5 <= agr12_Min_CMaxI_Days  and  agr12_Min_CMaxI_Days < 10.5 then 4.0 
+when 10.500 <= agr12_Min_CMaxI_Days then 4.0 
+when agr12_Min_CMaxI_Days is null then 4.0 
+else 4.0 end as PSC_agr12_Min_CMaxI_Days 
+ 
+, case 
+when 6.5 <= ags12_Min_CMaxI_Days  and  ags12_Min_CMaxI_Days < 9.5 then 4.0 
+when 12.500 <= ags12_Min_CMaxI_Days then 4.0 
+when ags12_Min_CMaxI_Days < 6.5 then 3.0 
+when 9.5 <= ags12_Min_CMaxI_Days  and  ags12_Min_CMaxI_Days < 12.5 then 3.0 
+when ags12_Min_CMaxI_Days is null then -0.0 
+else 4.0 end as PSC_ags12_Min_CMaxI_Days 
+ 
+, case 
+when 0.437 <= ags12_Mean_CMaxI_Due then 4.0 
+when 0.174 <= ags12_Mean_CMaxI_Due  and  ags12_Mean_CMaxI_Due < 0.437 then 4.0 
+when 0.042 <= ags12_Mean_CMaxI_Due  and  ags12_Mean_CMaxI_Due < 0.174 then 4.0 
+when ags12_Mean_CMaxI_Due < 0.042 then 4.0 
+when ags12_Mean_CMaxI_Due is null then 5.0 
+else 4.0 end as PSC_ags12_Mean_CMaxI_Due 
+ 
+, case 
+when 0.500 <= agr12_Max_CMaxI_Due then 4.0 
+when agr12_Max_CMaxI_Due < 0.5 then -4.0 
+when agr12_Max_CMaxI_Due is null then -14.0 
+else 4.0 end as PSC_agr12_Max_CMaxI_Due 
+ 
+, case 
+when 0.000 <= agr12_Min_CMaxI_Due then 4.0 
+when agr12_Min_CMaxI_Due is null then 52.0 
+else 4.0 end as PSC_agr12_Min_CMaxI_Due 
+ 
+, case 
+when agr12_Mean_CMaxC_Days < 14.375 then 4.0 
+when 14.375 <= agr12_Mean_CMaxC_Days  and  agr12_Mean_CMaxC_Days < 14.542 then 11.0 
+when agr12_Mean_CMaxC_Days is null then 12.0 
+when 14.542 <= agr12_Mean_CMaxC_Days  and  agr12_Mean_CMaxC_Days < 14.708 then 23.0 
+when 14.708 <= agr12_Mean_CMaxC_Days then 36.0 
+else 4.0 end as PSC_agr12_Mean_CMaxC_Days 
+ 
+, case 
+when agr12_Mean_CMaxA_Days < 14.375 then 4.0 
+when 14.375 <= agr12_Mean_CMaxA_Days  and  agr12_Mean_CMaxA_Days < 14.542 then 4.0 
+when agr12_Mean_CMaxA_Days is null then 4.0 
+when 14.542 <= agr12_Mean_CMaxA_Days  and  agr12_Mean_CMaxA_Days < 14.708 then 4.0 
+when 14.708 <= agr12_Mean_CMaxA_Days then 4.0 
+else 4.0 end as PSC_agr12_Mean_CMaxA_Days 
+ 
+, case 
+when ags12_Min_CMaxA_Days < 8.5 then 4.0 
+when 8.5 <= ags12_Min_CMaxA_Days  and  ags12_Min_CMaxA_Days < 12.5 then 4.0 
+when 12.5 <= ags12_Min_CMaxA_Days  and  ags12_Min_CMaxA_Days < 13.5 then 5.0 
+when ags12_Min_CMaxA_Days is null then 5.0 
+when 13.500 <= ags12_Min_CMaxA_Days then 6.0 
+else 4.0 end as PSC_ags12_Min_CMaxA_Days 
+ 
+, case 
+when 1.500 <= agr12_Max_CMaxA_Due then 4.0 
+when 0.5 <= agr12_Max_CMaxA_Due  and  agr12_Max_CMaxA_Due < 1.5 then 5.0 
+when agr12_Max_CMaxA_Due < 0.5 then 6.0 
+when agr12_Max_CMaxA_Due is null then 6.0 
+else 4.0 end as PSC_agr12_Max_CMaxA_Due 
+ 
+, case 
+when 1.5 <= ags12_Max_CMaxA_Due  and  ags12_Max_CMaxA_Due < 2.5 then 4.0 
+when 2.500 <= ags12_Max_CMaxA_Due then 8.0 
+when 0.5 <= ags12_Max_CMaxA_Due  and  ags12_Max_CMaxA_Due < 1.5 then 11.0 
+when ags12_Max_CMaxA_Due < 0.5 then 14.0 
+when ags12_Max_CMaxA_Due is null then 22.0 
+else 4.0 end as PSC_ags12_Max_CMaxA_Due 
+ 
+, case 
+when 0.000 <= agr12_Min_CMaxA_Due then 4.0 
+when agr12_Min_CMaxA_Due is null then -19.0 
+else 4.0 end as PSC_agr12_Min_CMaxA_Due 
+ 
+, case 
+when 0.000 <= ags12_Min_CMaxA_Due then 4.0 
+when ags12_Min_CMaxA_Due is null then -2.0 
+else 4.0 end as PSC_ags12_Min_CMaxA_Due 
+ 
+, case 
+when 0.500 <= act12_n_arrears_days then 4.0 
+when act12_n_arrears_days < 0.5 then 14.0 
+when act12_n_arrears_days is null then 65.0 
+else 4.0 end as PSC_act12_n_arrears_days 
+ 
+, case 
+when app_char_gender in ('Male') then 4.0 
+when app_char_gender in ('Female') then 14.0 
+else 4.0 end as PSC_app_char_gender 
+ 
+, case 
+when app_char_marital_status in ('Divorced') then 10.0 
+when app_char_marital_status in ('Maried') then 13.0 
+when app_char_marital_status in ('Widowed') then 15.0 
+else 4.0 end as PSC_app_char_marital_status 
+ 
+, case 
+when app_char_city in ('Medium') then 4.0 
+when app_char_city in ('Big') then 4.0 
+when app_char_city in ('Large') then 4.0 
+when app_char_city in ('Small') then 4.0 
+else 4.0 end as PSC_app_char_city 
+ 
+, case 
+when app_char_home_status in ('Owner') then 4.0 
+when app_char_home_status in ('Rental') then 15.0 
+else 4.0 end as PSC_app_char_home_status 
+ 
+, case 
+when app_char_cars in ('Owner') then 4.0 
+when app_char_cars in ('No') then 8.0 
+else 4.0 end as PSC_app_char_cars 
+ 
+/* , 1/(1+exp(-(-0.014378052555891956*(0.0+ calculated PSC_act_age+ calculated PSC_act_cc+ calculated PSC_act_loaninc+ calculated PSC_app_income+ calculated PSC_app_n_installments+ calculated PSC_app_number_of_children+ calculated PSC_app_installment+ calculated PSC_app_char_gender+ calculated PSC_app_char_marital_status+ calculated PSC_app_char_city+ calculated PSC_app_char_home_status+ calculated PSC_app_char_cars+ calculated PSC_act_call_cc+ calculated PSC_act_cins_n_loan+ calculated PSC_act_cins_min_seniority+ calculated PSC_act_cins_n_statC+ calculated PSC_act_cins_n_statB+ calculated PSC_act_cins_n_loans_act+ calculated PSC_act_cins_maxdue+ calculated PSC_act_cins_min_pninst+ calculated PSC_act_cins_utl+ calculated PSC_act_cins_cc+ calculated PSC_act_ccss_seniority+ calculated PSC_act_ccss_min_seniority+ calculated PSC_act_ccss_n_statC+ calculated PSC_act_ccss_n_statB+ calculated PSC_act_ccss_min_pninst+ calculated PSC_act_ccss_min_lninst+ calculated PSC_act_ccss_dueutl+ calculated PSC_act_ccss_cc+ calculated PSC_agr3_Min_CMaxI_Days+ calculated PSC_ags3_Max_CMaxI_Due+ calculated PSC_ags3_Mean_CMaxC_Days+ calculated PSC_ags3_Mean_CMaxC_Due+ calculated PSC_ags3_Mean_CMaxA_Days+ calculated PSC_ags3_Max_CMaxA_Days+ calculated PSC_agr3_Min_CMaxA_Due+ calculated PSC_act3_n_arrears_days+ calculated PSC_act3_n_good_days+ calculated PSC_ags6_Mean_CMaxI_Days+ calculated PSC_agr6_Max_CMaxI_Days+ calculated PSC_ags6_Max_CMaxI_Days+ calculated PSC_agr6_Min_CMaxI_Days+ calculated PSC_agr6_Mean_CMaxI_Due+ calculated PSC_ags6_Mean_CMaxI_Due+ calculated PSC_agr6_Min_CMaxI_Due+ calculated PSC_agr6_Mean_CMaxC_Days+ calculated PSC_ags6_Mean_CMaxC_Due+ calculated PSC_agr6_Mean_CMaxA_Days+ calculated PSC_agr6_Mean_CMaxA_Due+ calculated PSC_agr6_Min_CMaxA_Due+ calculated PSC_ags9_Mean_CMaxI_Days+ calculated PSC_ags9_Max_CMaxI_Days+ calculated PSC_ags9_Min_CMaxI_Due+ calculated PSC_agr9_Max_CMaxC_Days+ calculated PSC_ags9_Min_CMaxC_Days+ calculated PSC_agr12_Mean_CMaxI_Days+ calculated PSC_agr12_Max_CMaxI_Days+ calculated PSC_ags12_Max_CMaxI_Days+ calculated PSC_agr12_Min_CMaxI_Days+ calculated PSC_ags12_Min_CMaxI_Days+ calculated PSC_ags12_Mean_CMaxI_Due+ calculated PSC_agr12_Max_CMaxI_Due+ calculated PSC_agr12_Min_CMaxI_Due+ calculated PSC_agr12_Mean_CMaxC_Days+ calculated PSC_agr12_Mean_CMaxA_Days+ calculated PSC_ags12_Min_CMaxA_Days+ calculated PSC_agr12_Max_CMaxA_Due+ calculated PSC_ags12_Max_CMaxA_Due+ calculated PSC_agr12_Min_CMaxA_Due+ calculated PSC_ags12_Min_CMaxA_Due+ calculated PSC_act12_n_arrears_days+(0)))) as PD_CSS_CROSS */ 
+ 
+, 0.0 
++ calculated PSC_act_age + calculated PSC_act_cc + calculated PSC_act_loaninc + calculated PSC_app_income + calculated PSC_app_n_installments + calculated PSC_app_number_of_children + calculated PSC_app_installment + calculated PSC_app_char_gender + calculated PSC_app_char_marital_status + calculated PSC_app_char_city + calculated PSC_app_char_home_status + calculated PSC_app_char_cars + calculated PSC_act_call_cc + calculated PSC_act_cins_n_loan + calculated PSC_act_cins_min_seniority + calculated PSC_act_cins_n_statC + calculated PSC_act_cins_n_statB + calculated PSC_act_cins_n_loans_act + calculated PSC_act_cins_maxdue + calculated PSC_act_cins_min_pninst + calculated PSC_act_cins_utl + calculated PSC_act_cins_cc + calculated PSC_act_ccss_seniority + calculated PSC_act_ccss_min_seniority + calculated PSC_act_ccss_n_statC + calculated PSC_act_ccss_n_statB + calculated PSC_act_ccss_min_pninst + calculated PSC_act_ccss_min_lninst + calculated PSC_act_ccss_dueutl + calculated PSC_act_ccss_cc + calculated PSC_agr3_Min_CMaxI_Days + calculated PSC_ags3_Max_CMaxI_Due + calculated PSC_ags3_Mean_CMaxC_Days + calculated PSC_ags3_Mean_CMaxC_Due + calculated PSC_ags3_Mean_CMaxA_Days + calculated PSC_ags3_Max_CMaxA_Days + calculated PSC_agr3_Min_CMaxA_Due + calculated PSC_act3_n_arrears_days + calculated PSC_act3_n_good_days + calculated PSC_ags6_Mean_CMaxI_Days + calculated PSC_agr6_Max_CMaxI_Days + calculated PSC_ags6_Max_CMaxI_Days + calculated PSC_agr6_Min_CMaxI_Days + calculated PSC_agr6_Mean_CMaxI_Due + calculated PSC_ags6_Mean_CMaxI_Due + calculated PSC_agr6_Min_CMaxI_Due + calculated PSC_agr6_Mean_CMaxC_Days + calculated PSC_ags6_Mean_CMaxC_Due + calculated PSC_agr6_Mean_CMaxA_Days + calculated PSC_agr6_Mean_CMaxA_Due + calculated PSC_agr6_Min_CMaxA_Due + calculated PSC_ags9_Mean_CMaxI_Days + calculated PSC_ags9_Max_CMaxI_Days + calculated PSC_ags9_Min_CMaxI_Due + calculated PSC_agr9_Max_CMaxC_Days + calculated PSC_ags9_Min_CMaxC_Days + calculated PSC_agr12_Mean_CMaxI_Days + calculated PSC_agr12_Max_CMaxI_Days + calculated PSC_ags12_Max_CMaxI_Days + calculated PSC_agr12_Min_CMaxI_Days + calculated PSC_ags12_Min_CMaxI_Days + calculated PSC_ags12_Mean_CMaxI_Due + calculated PSC_agr12_Max_CMaxI_Due + calculated PSC_agr12_Min_CMaxI_Due + calculated PSC_agr12_Mean_CMaxC_Days + calculated PSC_agr12_Mean_CMaxA_Days + calculated PSC_ags12_Min_CMaxA_Days + calculated PSC_agr12_Max_CMaxA_Due + calculated PSC_ags12_Max_CMaxA_Due + calculated PSC_agr12_Min_CMaxA_Due + calculated PSC_ags12_Min_CMaxA_Due + calculated PSC_act12_n_arrears_days  as SCORECARD_POINTS 
+ 
+from &zbior as indataset; 
+quit; 
